@@ -13,6 +13,7 @@ wheels/
 .ipynb_checkpoints/
 
 # Dataset and generated artifacts (distributed via HuggingFace instead)
-/data/
-/clip_embeddings/
-/*_csv/
+# unanchored so this matches inside every experiment folder (cub/data/, emails/data/, ...)
+data/
+clip_embeddings/
+*_csv/

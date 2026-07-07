@@ -2,6 +2,8 @@
 
 Reproducible codebase for the CBM user study paper, built around [CQA](https://github.com/debryu/CQA) for dataset loading and concept-bottleneck-model tooling.
 
+The repo is organized by experiment (`cub/`, `emails/`, ...), each with its own `data/`, `metadata/`, `scripts/`, `notebooks/` — sharing a single top-level `uv` environment.
+
 ## Setup
 
 Requires [`uv`](https://docs.astral.sh/uv/) and an NVIDIA GPU (CUDA 12.1+ driver).
@@ -16,39 +18,44 @@ This creates a `.venv` with a CUDA build of PyTorch, CQA (installed straight fro
 
 ## Data
 
-Datasets, CLIP embeddings, and model checkpoints are **not** committed to this repo — they're distributed via HuggingFace instead (link TBD). `data/`, `clip_embeddings/`, and `*_csv/` are gitignored.
+Datasets, CLIP embeddings, and model checkpoints are **not** committed to this repo — they're distributed via HuggingFace instead (link TBD). Every `data/`, `clip_embeddings/`, and `*_csv/` folder (wherever it occurs, e.g. `cub/data/`) is gitignored.
 
-To populate a dataset locally, place it under `data/<dataset>/` in the layout CQA expects. For CUB-200-2011:
+To populate the CUB-200-2011 dataset locally, place it under `cub/data/cub/` in the layout CQA expects:
 
 ```
-data/cub/
+cub/data/cub/
 ├── CUB_200_2011/          # raw images (from Caltech)
 └── class_attr_data_10/    # train.pkl / val.pkl / test.pkl (concept + label annotations)
 ```
 
-If `data/cub/` is empty, pass `--download` to the encoding script below and CQA will fetch both automatically.
+If `cub/data/cub/` is empty, pass `--download` to the encoding script below and CQA will fetch both automatically.
 
-Class and concept names live in `metadata/cub/{classes.txt,concepts.txt}` (tracked in git — small, static reference lists).
+Class and concept names live in `cub/metadata/cub/{classes.txt,concepts.txt}` (tracked in git — small, static reference lists).
 
 ## Encoding a dataset with CLIP
 
 ```bash
-uv run scripts/encode_clip.py --dataset cub --data-root data/cub --clip-model ViT-L/14
+cd cub
+uv run scripts/encode_clip.py --dataset cub --clip-model ViT-L/14
 ```
 
 For each split (`train`, `val`, `test`) this:
-- encodes every image with the given CLIP model and saves the embedding matrix to `clip_embeddings/<dataset>_<split>_<model>.pt`
-- saves a CSV of concepts + labels to `<dataset>_csv/<split>.csv` (e.g. `cub_csv/train.csv`)
+- encodes every image with the given CLIP model and saves the embedding matrix to `data/clip_embeddings/<dataset>_<split>_<model>.pt`
+- saves a CSV of concepts + labels to `data/<dataset>_csv/<split>.csv` (e.g. `data/cub_csv/train.csv`)
 
 Run `uv run scripts/encode_clip.py --help` for all options (batch size, device, output directories, etc).
 
 ## Repository layout
 
 ```
-scripts/encode_clip.py     # CLIP encoding script
-metadata/cub/               # class/concept name lists (tracked)
-notebooks/generate_data.ipynb  # exploratory reference notebook
-data/                        # datasets (gitignored, populated locally)
-clip_embeddings/             # CLIP embeddings (gitignored)
-cub_csv/                     # concepts/labels CSVs (gitignored)
+cub/
+├── scripts/encode_clip.py       # CLIP encoding script
+├── metadata/cub/                 # class/concept name lists (tracked)
+├── notebooks/generate_data.ipynb # exploratory reference notebook
+└── data/                          # dataset + generated artifacts (gitignored)
+    ├── cub/                       # raw dataset
+    ├── clip_embeddings/           # CLIP embeddings
+    └── cub_csv/                   # concepts/labels CSVs
+emails/                            # second experiment (TBD)
+pyproject.toml, uv.lock            # shared environment for all experiments
 ```

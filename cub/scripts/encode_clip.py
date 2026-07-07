@@ -6,8 +6,11 @@ For every split (train/val/test) this:
   3. saves the resulting embedding matrix to <embeddings-dir>/<dataset>_<split>_<model>.pt
   4. saves a concepts/labels CSV to <csv-dir>/<split>.csv
 
+Run from inside the experiment folder (e.g. cub/), where data/<dataset>,
+metadata/<dataset>, data/clip_embeddings, and data/<dataset>_csv live.
+
 Example:
-  uv run scripts/encode_clip.py --dataset cub --data-root data/cub
+  cd cub && uv run scripts/encode_clip.py --dataset cub
 """
 
 import argparse
@@ -27,15 +30,15 @@ SPLITS = ["train", "val", "test"]
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", default="cub", help="CQA dataset name (ds_name passed to GenericDataset)")
-    parser.add_argument("--data-root", default="data/cub", help="Dataset root directory")
+    parser.add_argument("--data-root", default=None, help="Dataset root directory (default: data/<dataset>)")
     parser.add_argument("--metadata-dir", default=None, help="Directory with classes.txt/concepts.txt (default: metadata/<dataset>)")
     parser.add_argument("--clip-model", default="ViT-L/14", choices=clip.available_models())
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--batch-size", type=int, default=256)
     parser.add_argument("--num-workers", type=int, default=8)
     parser.add_argument("--download", action="store_true", help="Download the dataset into --data-root if missing")
-    parser.add_argument("--embeddings-dir", default="clip_embeddings")
-    parser.add_argument("--csv-dir", default=None, help="Default: <dataset>_csv")
+    parser.add_argument("--embeddings-dir", default=None, help="Default: data/clip_embeddings")
+    parser.add_argument("--csv-dir", default=None, help="Default: data/<dataset>_csv")
     return parser.parse_args()
 
 
@@ -67,9 +70,10 @@ def encode_split(model, preprocess, args, split: str) -> tuple[torch.Tensor, tor
 
 def main() -> None:
     args = parse_args()
+    args.data_root = args.data_root or str(Path("data") / args.dataset)
     metadata_dir = Path(args.metadata_dir) if args.metadata_dir else Path("metadata") / args.dataset
-    csv_dir = Path(args.csv_dir) if args.csv_dir else Path(f"{args.dataset}_csv")
-    embeddings_dir = Path(args.embeddings_dir)
+    csv_dir = Path(args.csv_dir) if args.csv_dir else Path("data") / f"{args.dataset}_csv"
+    embeddings_dir = Path(args.embeddings_dir) if args.embeddings_dir else Path("data") / "clip_embeddings"
     embeddings_dir.mkdir(parents=True, exist_ok=True)
     csv_dir.mkdir(parents=True, exist_ok=True)
 
