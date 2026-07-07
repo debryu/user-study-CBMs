@@ -47,7 +47,27 @@ def load_names(path: Path) -> list[str]:
         return [line.strip() for line in f if line.strip()]
 
 
-def encode_split(model, preprocess, args, split: str) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+def get_image_paths(dataset: GenericDataset) -> list[str] | None:
+    """Image paths relative to --data-root, in the same order as dataset[idx].
+
+    Only implemented for CQA's CUBDataset (the only backend we've inspected);
+    returns None for datasets we don't know how to resolve paths for.
+    """
+    underlying = dataset.dataset
+    if not (hasattr(underlying, "data") and hasattr(underlying, "image_dir")):
+        return None
+    root = Path(dataset.root)
+    image_dir = Path(underlying.image_dir)
+    paths = []
+    for entry in underlying.data:
+        parts = entry["img_path"].split("/")
+        marker = parts.index("CUB_200_2011")
+        local_path = image_dir.joinpath(*parts[marker + 2 :])
+        paths.append(str(local_path.relative_to(root)))
+    return paths
+
+
+def encode_split(model, preprocess, args, split: str) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, list[str] | None]:
     dataset = GenericDataset(
         ds_name=args.dataset,
         split=split,
@@ -55,6 +75,7 @@ def encode_split(model, preprocess, args, split: str) -> tuple[torch.Tensor, tor
         transform=preprocess,
         download=args.download,
     )
+    image_paths = get_image_paths(dataset)
     loader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers)
 
     embeddings, concepts, labels = [], [], []
@@ -65,7 +86,7 @@ def encode_split(model, preprocess, args, split: str) -> tuple[torch.Tensor, tor
             concepts.append(batch_concepts)
             labels.append(batch_labels)
 
-    return torch.cat(embeddings), torch.cat(concepts), torch.cat(labels)
+    return torch.cat(embeddings), torch.cat(concepts), torch.cat(labels), image_paths
 
 
 def main() -> None:
@@ -85,20 +106,21 @@ def main() -> None:
     model_tag = args.clip_model.replace("/", "%")
 
     for split in SPLITS:
-        embeddings, concepts, labels = encode_split(model, preprocess, args, split)
+        embeddings, concepts, labels, image_paths = encode_split(model, preprocess, args, split)
 
         embeddings_path = embeddings_dir / f"{args.dataset}_{split}_{model_tag}.pt"
         torch.save(embeddings, embeddings_path)
 
         labels_list = labels.tolist()
-        df = pd.DataFrame(
-            {
-                "sample_idx": range(len(labels_list)),
-                "split": split,
-                "label": labels_list,
-                "class_name": [class_names[label] for label in labels_list],
-            }
-        )
+        columns = {
+            "sample_idx": range(len(labels_list)),
+            "split": split,
+            "label": labels_list,
+            "class_name": [class_names[label] for label in labels_list],
+        }
+        if image_paths is not None:
+            columns["image_path"] = image_paths
+        df = pd.DataFrame(columns)
         concepts_df = pd.DataFrame(concepts.numpy(), columns=concept_names)
         df = pd.concat([df, concepts_df], axis=1)
         df.to_csv(csv_dir / f"{split}.csv", index=False)

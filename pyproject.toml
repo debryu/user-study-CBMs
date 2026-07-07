@@ -11,6 +11,8 @@ dependencies = [
     "clip",
     "pandas",
     "tqdm",
+    "datasets",
+    "huggingface-hub",
 ]
 
 [tool.uv.sources]

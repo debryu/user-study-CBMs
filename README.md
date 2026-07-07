@@ -43,13 +43,27 @@ For each split (`train`, `val`, `test`) this:
 - encodes every image with the given CLIP model and saves the embedding matrix to `data/clip_embeddings/<dataset>_<split>_<model>.pt`
 - saves a CSV of concepts + labels to `data/<dataset>_csv/<split>.csv` (e.g. `data/cub_csv/train.csv`)
 
-Run `uv run scripts/encode_clip.py --help` for all options (batch size, device, output directories, etc).
+Run `uv run scripts/encode_clip.py --help` for all options (batch size, device, output directories, etc). The output CSV also gets an `image_path` column (relative to `--data-root`) so images can be re-joined for distribution — see below.
+
+## Publishing to HuggingFace
+
+Once a dataset is fully encoded, `push_to_hub.py` joins each split's images + embeddings + CSV into one table (image, embedding, label, class_name, one column per concept) and pushes it as a HF `DatasetDict`:
+
+```bash
+uv run huggingface-cli login   # or export HF_TOKEN=...
+cd cub
+uv run scripts/push_to_hub.py --repo-id <your-username>/cub-user-study
+```
+
+Pushes as a **private** repo by default; pass `--public` once it's ready to share. Run `--help` for all options.
 
 ## Repository layout
 
 ```
 cub/
-├── scripts/encode_clip.py       # CLIP encoding script
+├── scripts/
+│   ├── encode_clip.py            # CLIP encoding script
+│   └── push_to_hub.py            # packages + pushes a dataset to HF Hub
 ├── metadata/cub/                 # class/concept name lists (tracked)
 ├── notebooks/generate_data.ipynb # exploratory reference notebook
 └── data/                          # dataset + generated artifacts (gitignored)
