@@ -47,29 +47,38 @@ Run `uv run scripts/encode_clip.py --help` for all options (batch size, device, 
 
 ## Publishing to HuggingFace
 
-Once a dataset is fully encoded, `push_to_hub.py` joins each split's images + embeddings + CSV into one table (image, embedding, label, class_name, one column per concept) and pushes it as a HF `DatasetDict`:
+We don't own the CUB-200-2011 images (Caltech redistributes them for non-commercial research use only — the photos themselves stay copyright of the original photographers), so images and the *official* CUB labels are kept in a separate repo from anything that's genuinely our own contribution, licensed accordingly. Both scripts push a `DatasetDict` with all three splits in one call and share the `image_path` column so the two repos can be joined back together locally.
 
 ```bash
 uv run huggingface-cli login   # or export HF_TOKEN=...
 cd cub
-uv run scripts/push_to_hub.py --repo-id <your-username>/cub-user-study
+
+# 1. images + CLIP embeddings + official CUB labels — CUB's non-commercial research-use terms
+uv run scripts/push_to_hub.py --repo-id <your-username>/cub-mirror \
+    --annotations-repo-id <your-username>/cub-user-study-annotations
+
+# 2. our own annotations only (once they exist, under data/cub_annotations/{split}.csv) — license of our choosing
+uv run scripts/push_annotations_to_hub.py --repo-id <your-username>/cub-user-study-annotations \
+    --base-repo-id <your-username>/cub-mirror --license cc-by-4.0
 ```
 
-Pushes as a **private** repo by default; pass `--public` once it's ready to share. Run `--help` for all options.
+Both push as **private** repos by default; pass `--public` once ready to share. Each script also writes a dataset card (`README.md` on the Hub) documenting attribution/license and how to join the two repos. Run either with `--help` for all options.
 
 ## Repository layout
 
 ```
 cub/
 ├── scripts/
-│   ├── encode_clip.py            # CLIP encoding script
-│   └── push_to_hub.py            # packages + pushes a dataset to HF Hub
-├── metadata/cub/                 # class/concept name lists (tracked)
-├── notebooks/generate_data.ipynb # exploratory reference notebook
+│   ├── encode_clip.py             # CLIP encoding script
+│   ├── push_to_hub.py             # pushes images + embeddings + official CUB labels (CUB terms)
+│   └── push_annotations_to_hub.py # pushes our own annotations only (our choice of license)
+├── metadata/cub/                  # class/concept name lists (tracked)
+├── notebooks/generate_data.ipynb  # exploratory reference notebook
 └── data/                          # dataset + generated artifacts (gitignored)
     ├── cub/                       # raw dataset
     ├── clip_embeddings/           # CLIP embeddings
-    └── cub_csv/                   # concepts/labels CSVs
+    ├── cub_csv/                   # concepts/labels CSVs
+    └── cub_annotations/           # our own annotations, keyed by image_path (once added)
 emails/                            # second experiment (TBD)
 pyproject.toml, uv.lock            # shared environment for all experiments
 ```
