@@ -15,6 +15,12 @@ dependencies = [
     "huggingface-hub",
 ]
 
+[dependency-groups]
+dev = [
+    "ipykernel",
+    "nbclient",
+]
+
 [tool.uv.sources]
 torch = [{ index = "pytorch-cu121" }]
 torchvision = [{ index = "pytorch-cu121" }]
