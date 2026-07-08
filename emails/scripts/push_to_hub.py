@@ -64,11 +64,25 @@ def main() -> None:
     args = parse_args()
     data_dir = Path(args.data_dir)
 
-    splits = {}
+    dfs = {}
     for split, filename in SPLIT_FILES.items():
         df = pd.read_parquet(data_dir / filename)
         # words_bin is a leftover stratified-split helper column (train/val only)
         df = df.drop(columns=["words_bin"], errors="ignore")
+        dfs[split] = df
+
+    # A column that's all-null in one split (e.g. an error-tracking column with
+    # no errors) gets Arrow-typed as `null` there but `string` elsewhere, which
+    # push_to_hub's cross-split schema check rejects -- normalize object/string
+    # columns to a consistent non-null dtype across all splits first.
+    string_cols = {c for df in dfs.values() for c, dt in df.dtypes.items() if dt == object}
+    for df in dfs.values():
+        for col in string_cols:
+            if col in df.columns:
+                df[col] = df[col].astype("string").fillna("")
+
+    splits = {}
+    for split, df in dfs.items():
         splits[split] = Dataset.from_pandas(df, preserve_index=False)
         print(f"{split}: {len(df)} rows")
 
