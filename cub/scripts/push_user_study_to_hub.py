@@ -49,7 +49,13 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    df = pd.read_csv(args.input, keep_default_na=False)
+    # Default NA handling (not keep_default_na=False): by this point
+    # prepare_user_study_dataset.py has already relabeled the literal "None"
+    # string to "NoSupport", so there's no more ambiguity between it and a
+    # genuinely blank cell -- reading normally lets numeric columns come back
+    # as proper int/float (with real nulls) instead of all-string, so the
+    # pushed dataset needs no dtype fixups once downloaded.
+    df = pd.read_csv(args.input)
 
     ds = Dataset.from_pandas(df, preserve_index=False)
     ds.push_to_hub(args.repo_id, private=not args.public)
