@@ -1,8 +1,9 @@
 """Push the cleaned CUB user-study responses to the HF Hub as a private dataset.
 
 Loads the CSV produced by prepare_user_study_dataset.py and pushes it as a
-single-table dataset (no train/val/test splits -- this is participant
-response data, not model training data).
+single table under the "test" split name -- every stimulus a participant saw
+came from the CUB test split (see StimX_TestSampleIdx), so calling it "train"
+(push_to_hub's default for a single Dataset) would be misleading.
 
 Requires being logged in first: `uv run huggingface-cli login` (or set HF_TOKEN).
 
@@ -58,7 +59,7 @@ def main() -> None:
     df = pd.read_csv(args.input)
 
     ds = Dataset.from_pandas(df, preserve_index=False)
-    ds.push_to_hub(args.repo_id, private=not args.public)
+    ds.push_to_hub(args.repo_id, split="test", private=not args.public)
 
     card = DatasetCard(CARD_TEMPLATE.format(repo_id=args.repo_id))
     card.push_to_hub(args.repo_id, repo_type="dataset")
