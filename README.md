@@ -64,6 +64,12 @@ uv run scripts/push_annotations_to_hub.py --repo-id <your-username>/cub-user-stu
 
 Both push as **private** repos by default; pass `--public` once ready to share. Each script also writes a dataset card (`README.md` on the Hub) documenting attribution/license and how to join the two repos. Run either with `--help` for all options.
 
+`push_to_hub.py`'s dataset (currently live at [`NWeak/cub-mirror`](https://huggingface.co/datasets/NWeak/cub-mirror)) stores everything needed to run the modeling notebook without any local files: `label` is a HF `ClassLabel` (so `ds[split].features["label"].names` gives the 200 class names), `concepts` is a single ground-truth vector column (same order as the 112 individual concept columns), and `class_names.txt`/`concept_names.txt` are also uploaded as plain files in the repo.
+
+## Modeling notebook
+
+`cub/notebooks/generate_data.ipynb` loads `NWeak/cub-mirror` directly via `load_dataset()` and runs the full concept-bottleneck pipeline for a hard pair (Le Conte vs. Savannah Sparrow): CLIP embedding → concept classifiers → concept → label classifier → end-to-end evaluation → a tidy per-sample CSV → a hand-checkable linear formula for the user study. No local CUB download or CQA needed to run it — just `uv sync` + `hf auth login`.
+
 ## Repository layout
 
 ```
@@ -73,12 +79,13 @@ cub/
 │   ├── push_to_hub.py             # pushes images + embeddings + official CUB labels (CUB terms)
 │   └── push_annotations_to_hub.py # pushes our own annotations only (our choice of license)
 ├── metadata/cub/                  # class/concept name lists (tracked)
-├── notebooks/generate_data.ipynb  # exploratory reference notebook
+├── notebooks/generate_data.ipynb  # modeling pipeline, sourced entirely from the HF dataset
 └── data/                          # dataset + generated artifacts (gitignored)
     ├── cub/                       # raw dataset
     ├── clip_embeddings/           # CLIP embeddings
     ├── cub_csv/                   # concepts/labels CSVs
-    └── cub_annotations/           # our own annotations, keyed by image_path (once added)
+    ├── cub_annotations/           # our own annotations, keyed by image_path (once added)
+    └── user_study/                # generate_data.ipynb's output CSV
 emails/                            # second experiment (TBD)
 pyproject.toml, uv.lock            # shared environment for all experiments
 ```
