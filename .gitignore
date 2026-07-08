@@ -20,3 +20,6 @@ wheels/
 data/
 clip_embeddings/
 *_csv/
+
+# Scratch/local-only files (e.g. downloaded Drive results), not tracked
+temp/
