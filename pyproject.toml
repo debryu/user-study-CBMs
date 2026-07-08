@@ -13,6 +13,9 @@ dependencies = [
     "tqdm",
     "datasets",
     "huggingface-hub",
+    "sentence-transformers",
+    "langdetect",
+    "chardet",
 ]
 
 [dependency-groups]
