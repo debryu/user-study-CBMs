@@ -49,12 +49,12 @@ def kruskal_by_condition(df: pd.DataFrame, value_col: str) -> tuple[float, float
 
 
 def boxplot_by_condition(df: pd.DataFrame, value_col: str, title: str, ylabel: str,
-                          out_path: Path, condition_order: list[str]) -> None:
+                          out_path: Path, condition_order: list[str], dataset_name: str) -> None:
     fig, ax = plt.subplots(figsize=(7, 5))
     sns.boxplot(data=df, x="ExperimentalCondition", y=value_col, order=condition_order, ax=ax)
     sns.stripplot(data=df, x="ExperimentalCondition", y=value_col, order=condition_order,
                   color="black", alpha=0.25, size=3, ax=ax)
-    ax.set_title(title)
+    ax.set_title(f"[{dataset_name}] {title}")
     ax.set_xlabel("Support modality")
     ax.set_ylabel(ylabel)
     plt.xticks(rotation=15)
@@ -65,11 +65,12 @@ def boxplot_by_condition(df: pd.DataFrame, value_col: str, title: str, ylabel: s
 
 
 def analysis_time_vs_support(long_df: pd.DataFrame, wide_df: pd.DataFrame, out_dir: Path,
-                              condition_order: list[str]) -> None:
+                              condition_order: list[str], dataset_name: str) -> None:
     print("\n=== A. Time-on-task vs. support modality ===")
 
     boxplot_by_condition(long_df, "TimeSpent", "Per-stimulus time spent, by support modality",
-                          "Time spent (minutes)", out_dir / "time_per_stimulus_by_condition.png", condition_order)
+                          "Time spent (minutes)", out_dir / "time_per_stimulus_by_condition.png",
+                          condition_order, dataset_name)
     h, p = kruskal_by_condition(long_df, "TimeSpent")
     print(f"  Kruskal-Wallis (per-stimulus TimeSpent across conditions): H={h:.2f}, p={p:.4g}")
     print(long_df.groupby("ExperimentalCondition", observed=True)["TimeSpent"].agg(["mean", "median", "std", "count"]))
@@ -77,14 +78,15 @@ def analysis_time_vs_support(long_df: pd.DataFrame, wide_df: pd.DataFrame, out_d
     total_time = long_df.groupby("ID")["TimeSpent"].sum().rename("TotalTimeSpent")
     participant_time = wide_df[["ID", "ExperimentalCondition"]].merge(total_time, on="ID")
     boxplot_by_condition(participant_time, "TotalTimeSpent", "Total time on task per participant, by support modality",
-                          "Total time (minutes)", out_dir / "total_time_per_participant_by_condition.png", condition_order)
+                          "Total time (minutes)", out_dir / "total_time_per_participant_by_condition.png",
+                          condition_order, dataset_name)
     h, p = kruskal_by_condition(participant_time, "TotalTimeSpent")
     print(f"  Kruskal-Wallis (per-participant total TimeSpent across conditions): H={h:.2f}, p={p:.4g}")
     print(participant_time.groupby("ExperimentalCondition", observed=True)["TotalTimeSpent"].agg(["mean", "median", "std", "count"]))
 
 
 def analysis_decisiveness(long_df: pd.DataFrame, out_dir: Path, condition_order: list[str],
-                           interactive_condition: str) -> None:
+                           interactive_condition: str, dataset_name: str) -> None:
     print("\n=== B. Decisiveness vs. support modality ===")
 
     # TimesAnswerChanged is a heavily zero-inflated count (median 0 in every
@@ -100,7 +102,7 @@ def analysis_decisiveness(long_df: pd.DataFrame, out_dir: Path, condition_order:
     )
     fig, ax = plt.subplots(figsize=(7, 5))
     sns.barplot(data=changed_share, x="ExperimentalCondition", y="changed", order=condition_order, ax=ax)
-    ax.set_title("Share of stimuli where the classification answer was changed at least once")
+    ax.set_title(f"[{dataset_name}] Share of stimuli where the classification answer was changed at least once")
     ax.set_xlabel("Support modality")
     ax.set_ylabel("Share of stimuli with >=1 answer change")
     ax.yaxis.set_major_formatter(lambda v, _: f"{v:.0%}")
@@ -120,7 +122,7 @@ def analysis_decisiveness(long_df: pd.DataFrame, out_dir: Path, condition_order:
     interactive = long_df[long_df["ExperimentalCondition"] == interactive_condition]
     fig, ax = plt.subplots(figsize=(6, 5))
     sns.histplot(interactive["total_clicks"], discrete=True, ax=ax)
-    ax.set_title(f"Concept-value edits per stimulus ({interactive_condition} only)")
+    ax.set_title(f"[{dataset_name}] Concept-value edits per stimulus ({interactive_condition} only)")
     ax.set_xlabel("Total concept clicks (sum over 6 features)")
     fig.tight_layout()
     fig.savefig(out_dir / "concept_clicks_interactive_only.png", dpi=150)
@@ -131,7 +133,7 @@ def analysis_decisiveness(long_df: pd.DataFrame, out_dir: Path, condition_order:
 
 
 def analysis_correlations(long_df: pd.DataFrame, wide_df: pd.DataFrame, out_dir: Path,
-                           condition_order: list[str]) -> None:
+                           condition_order: list[str], dataset_name: str) -> None:
     print("\n=== C. Trust / confidence / interaction / time correlations ===")
 
     per_participant = long_df.groupby("ID").agg(
@@ -150,7 +152,7 @@ def analysis_correlations(long_df: pd.DataFrame, wide_df: pd.DataFrame, out_dir:
 
     fig, ax = plt.subplots(figsize=(8, 6.5))
     sns.heatmap(corr, annot=True, fmt=".2f", cmap="RdBu_r", vmin=-1, vmax=1, ax=ax)
-    ax.set_title("Spearman correlation (per-participant aggregates)\n"
+    ax.set_title(f"[{dataset_name}] Spearman correlation (per-participant aggregates)\n"
                   "TrustIndex is NaN where there's no model to rate, pairwise-excluded there", fontsize=10)
     fig.tight_layout()
     fig.savefig(out_dir / "correlation_heatmap.png", dpi=150)
@@ -184,19 +186,33 @@ def analysis_correlations(long_df: pd.DataFrame, wide_df: pd.DataFrame, out_dir:
         ax.set_title(f"{x} vs. {y}")
     if axes.flat[0].get_legend() is not None:
         axes.flat[0].legend(fontsize=7, loc="best")
-    fig.tight_layout()
+    fig.suptitle(f"[{dataset_name}] Pairwise correlations (per-participant aggregates)")
+    fig.tight_layout(rect=[0, 0, 1, 0.96])
     fig.savefig(out_dir / "correlation_scatterplots.png", dpi=150)
     plt.close(fig)
     print(f"  saved {out_dir / 'correlation_scatterplots.png'}")
 
 
 def run_all(long_df: pd.DataFrame, wide_df: pd.DataFrame, out_dir: Path,
-            condition_order: list[str], interactive_condition: str) -> None:
+            condition_order: list[str], interactive_condition: str, dataset_name: str) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     long_df = prep_long_df(long_df, condition_order)
     wide_df = prep_wide_df(wide_df, condition_order)
-    print(f"Loaded long ({len(long_df)} rows) and wide ({len(wide_df)} rows) participant data")
+    print(f"[{dataset_name}] Loaded long ({len(long_df)} rows) and wide ({len(wide_df)} rows) participant data")
 
-    analysis_time_vs_support(long_df, wide_df, out_dir, condition_order)
-    analysis_decisiveness(long_df, out_dir, condition_order, interactive_condition)
-    analysis_correlations(long_df, wide_df, out_dir, condition_order)
+    analysis_time_vs_support(long_df, wide_df, out_dir, condition_order, dataset_name)
+    analysis_decisiveness(long_df, out_dir, condition_order, interactive_condition, dataset_name)
+    analysis_correlations(long_df, wide_df, out_dir, condition_order, dataset_name)
+
+    expected = [
+        "time_per_stimulus_by_condition.png",
+        "total_time_per_participant_by_condition.png",
+        "answer_changes_by_condition.png",
+        "concept_clicks_interactive_only.png",
+        "correlation_heatmap.png",
+        "correlation_scatterplots.png",
+    ]
+    missing = [f for f in expected if not (out_dir / f).exists()]
+    if missing:
+        raise RuntimeError(f"[{dataset_name}] missing expected figures after generation: {missing}")
+    print(f"[{dataset_name}] All {len(expected)} expected figures present in {out_dir}")

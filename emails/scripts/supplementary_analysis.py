@@ -43,7 +43,7 @@ def main() -> None:
     data_dir = Path(args.data_dir)
     long_df = pd.read_csv(data_dir / "dataLongClean.csv", keep_default_na=False)
     wide_df = pd.read_csv(data_dir / "dataWideClean.csv", keep_default_na=False)
-    run_all(long_df, wide_df, Path(args.output_dir), CONDITION_ORDER, INTERACTIVE_CONDITION)
+    run_all(long_df, wide_df, Path(args.output_dir), CONDITION_ORDER, INTERACTIVE_CONDITION, "Emails")
 
 
 if __name__ == "__main__":
