@@ -1,0 +1,482 @@
+\documentclass[11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{enumitem}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    columns=fullflexible,
+    keywordstyle=\color{blue!70!black}\bfseries,
+    commentstyle=\color{gray},
+    stringstyle=\color{orange!80!black},
+    language=Python,
+    showstringspaces=false,
+    frame=single,
+    framesep=4pt,
+    xleftmargin=2pt,
+    xrightmargin=2pt,
+}
+
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{Supplementary Material:\\Dataset Preprocessing and Concept Bottleneck Model Training}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Overview}
+
+This document describes, for both experiments in the study (a phishing-email
+detection task and a bird-species classification task on CUB-200-2011),
+every implementation step from raw input data to the final task prediction:
+dataset preprocessing, encoding, train/validation/test splitting, and the
+training of the two-stage Concept Bottleneck Model (CBM) itself. Both
+experiments follow the same two-stage CBM design:
+\begin{enumerate}
+    \item \textbf{Concept extractor} $g_c$: encoder embedding $\rightarrow$
+    predicted concept activations.
+    \item \textbf{Label predictor} $g_y$: concept activations $\rightarrow$
+    predicted task label.
+\end{enumerate}
+At inference time the two stages are chained: $\hat{y} = g_y(g_c(x))$. The
+two experiments differ substantially in what preprocessing is required
+before encoding, and in exactly which data each stage is trained on --
+both are described in full below. All code referenced here lives in the
+project repository, under \code{emails/scripts/} and \code{cub/scripts/}
+respectively; the exact end-to-end evaluation described in
+Sections~\ref{sec:emails-eval} and \ref{sec:cub-eval} is implemented in
+\code{emails/scripts/report\_test\_accuracy.py} and
+\code{cub/scripts/report\_test\_accuracy.py}.
+
+\section{Emails Corpus (Phishing Detection)}
+
+\subsection{Raw data and preprocessing}
+\label{sec:emails-preprocessing}
+
+The raw corpus (\code{merged\_emails\_with\_categories.jsonl}, 12{,}300
+emails) is \emph{not} used in full -- unlike CUB (Section~\ref{sec:cub-preprocessing}),
+the emails pipeline applies a row-level filter before any encoding happens,
+because the raw corpus contains material unsuitable for the study
+(non-English text, overly long emails, non-human-authored content).
+
+\paragraph{Step 1 -- language and length annotation.} For every email's
+\code{Body} text, a word count (whitespace split) and a language guess
+(\code{langdetect.detect}, seeded for determinism via
+\code{DetectorFactory.seed = 0}) are computed and stored as new columns.
+Empty/whitespace-only bodies are assigned \code{word\_count=0},
+\code{language="unknown"} without calling the detector.
+
+\paragraph{Step 2 -- filtering to the ``usable'' set.} The three conditions
+below are applied simultaneously (logical \textsc{and}, not sequential
+steps):
+
+\begin{lstlisting}
+usable = original[(original['lang'] == 'en')
+                   & (original['words'] < 400)
+                   & (original['Created by'] == 'Human')]
+\end{lstlisting}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{ll}
+\toprule
+Condition & Meaning \\
+\midrule
+\code{lang == 'en'} & Keep only emails classified as English \\
+\code{words < 400} & Keep only emails under 400 words (strict) \\
+\code{Created by == 'Human'} & Exclude LLM-generated / synthetic emails \\
+\bottomrule
+\end{tabular}
+\caption{Emails filtering criteria. Applied jointly, 12{,}300 $\rightarrow$ 2{,}330 ``usable'' emails.}
+\end{table}
+
+No deduplication is applied to the final data (an abandoned subject-based
+rebalancing branch exists earlier in the preprocessing notebook but its
+output is not used downstream).
+
+\subsection{Encoding}
+
+Only the \code{Body} text (never \code{Subject}) of each of the 2{,}330
+usable emails is encoded, as-is -- no HTML stripping, lowercasing,
+whitespace normalization, or additional truncation beyond the word-count
+filter above -- using \code{sentence-transformers}' \code{all-MiniLM-L6-v2}
+model. Encoding happens once, over the entire usable set, \emph{before} any
+train/validation/test split exists.
+
+\subsection{Concept and label construction}
+
+Still on the full, unsplit set: a 19-dimensional binary concept-ground-truth
+vector (\code{concept\_gts}) is derived from LLM-labeled emotion/motivation
+fields, and reduced to a 6-dimensional filtered vector
+(\code{concept\_gts\_f}) matching the six concepts actually used by the
+model and shown to human participants in the user study:
+\emph{Fear+Authority} (a merge of two raw concepts), \emph{Urgency},
+\emph{Curiosity}, \emph{Neutral}, \emph{Reply}, \emph{Open attachment}. The
+task label is assigned from the \code{Type} field: \code{Valid}
+$\rightarrow 1$, \code{Phishing}/\code{Phishing Simulation} $\rightarrow 0$,
+\code{Spam} $\rightarrow 2$ (label $2$ is excluded from CBM training/evaluation,
+see Section~\ref{sec:emails-training}).
+
+\subsection{Train / validation / test split}
+
+An earlier attempt at a stochastic, class-balanced split
+(\code{random\_state=42}-seeded sampling) was found not to be reproducible
+across pandas/numpy versions and is not used. The split actually used is
+selected \emph{by fixed email ID} from a pre-recorded list
+(\code{archival\_split\_ids.json}), matching the split used in the real
+human user study:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrr}
+\toprule
+Split & Total rows & Rows with label $\in\{0,1\}$ \\
+\midrule
+Train & 1{,}064 & 551 \\
+Validation & 266 & 138 \\
+Test (user study set) & 1{,}000 & 1{,}000 \\
+\bottomrule
+\end{tabular}
+\caption{Emails split sizes. The test split is class-balanced by
+construction (500 valid / 500 phishing).}
+\end{table}
+
+Because the split operates on the already-embedded dataframe, embeddings
+are computed exactly once and never recomputed per split.
+
+\subsection{Concept extractor training}
+\label{sec:emails-training}
+
+The concept extractor is one binary linear SVM per concept (six
+independent classifiers, via scikit-learn's \code{MultiOutputClassifier}),
+trained on the \emph{full} training split (all 1{,}064 rows, regardless of
+task label -- concept labels are defined for every email, including
+\code{Spam}):
+
+\begin{lstlisting}
+X_train = np.stack(train['embedding'].values)
+y_train = np.stack(train['concept_gts_f'].values)
+
+concept_model = MultiOutputClassifier(
+    SVC(kernel='linear', C=1.0)
+)
+concept_model.fit(X_train, y_train)
+\end{lstlisting}
+
+\paragraph{Hyperparameter choice.} A linear kernel with $C=1.0$ was
+selected empirically; RBF kernels (both $C=1.0$ and $C=1000$) and a looser
+linear SVM ($C=0.01$) were also tried during development and gave lower
+validation micro-F1 (documented as code comments alongside the chosen
+configuration in the training notebook) -- the reported linear, $C=1.0$
+configuration is the one actually used for all downstream results.
+
+\subsection{Label predictor training}
+
+The label predictor is a single multinomial logistic regression, trained
+\emph{only} on training rows with a binary task label (\code{train\_class},
+551 rows -- \code{Spam} rows are excluded here, since the task being
+predicted is binary valid-vs-phishing), using \emph{ground-truth} concepts
+rescaled from $\{0,1\}$ to $\{-1,+1\}$:
+
+\begin{lstlisting}
+concept_gts_pm1 = 2 * np.stack(train_class['concept_gts_f'].values) - 1
+y_train = np.stack(train_class['label'].values)
+
+label_model = LogisticRegression(
+    max_iter=1000, C=1, solver='lbfgs',
+    fit_intercept=False, penalty=None,
+    class_weight='balanced',
+)
+label_model.fit(concept_gts_pm1, y_train)
+\end{lstlisting}
+
+\paragraph{Design choices.} \code{fit\_intercept=False} was chosen so the
+fitted weight vector alone is directly interpretable as each concept's
+signed contribution to the ``valid email'' decision, with no additive bias
+term. \code{penalty=None} (i.e.\ unregularized logistic regression) is
+viable here because the input dimensionality is tiny (6 concepts) relative
+to the number of training examples (551), so overfitting risk is low;
+\code{class\_weight='balanced'} compensates for the training split's class
+imbalance (185 valid vs.\ 366 phishing in the training split with binary
+labels).
+
+\subsection{End-to-end inference and evaluation}
+\label{sec:emails-eval}
+
+At test time, the two trained stages are chained: an email's embedding is
+passed through each of the six per-concept SVMs' \emph{decision function}
+(continuous distance to the separating hyperplane, not the binarized
+prediction), passed through $\tanh$ to bound it to $(-1, 1)$, and the
+resulting 6-dimensional vector is fed to the label predictor:
+
+\begin{lstlisting}
+logits = np.column_stack(
+    [est.decision_function(X_test) for est in concept_model.estimators_]
+)
+concept_activations = np.tanh(logits)
+y_pred = label_model.predict(concept_activations)
+\end{lstlisting}
+
+Using the continuous, $\tanh$-transformed decision function (rather than
+the SVMs' binarized concept predictions) as the label predictor's input
+means the label predictor receives a graded, real-valued confidence signal
+per concept at inference time, matching the same $\pm 1$-scaled
+representation it was trained on (ground-truth concepts rescaled to
+$\{-1,+1\}$ are simply the two extremes of this same range). Evaluated on
+the full 1{,}000-row, class-balanced test set, this yields:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrr}
+\toprule
+Class & Precision & Recall & F1 & Support \\
+\midrule
+Phishing (0) & 0.91 & 0.94 & 0.92 & 500 \\
+Valid (1) & 0.93 & 0.91 & 0.92 & 500 \\
+\midrule
+\textbf{Accuracy} & \multicolumn{4}{r}{\textbf{0.923} (1{,}000 / 1{,}000)} \\
+\bottomrule
+\end{tabular}
+\caption{Emails CBM end-to-end test performance.}
+\end{table}
+
+\section{CUB-200-2011 (Bird Species Classification)}
+
+\subsection{Raw data and preprocessing}
+\label{sec:cub-preprocessing}
+
+Unlike emails, \textbf{no filtering or exclusion is applied to CUB at
+all}: every image in the official CUB-200-2011 train/validation/test split
+is encoded, unmodified in selection. Concept and label annotations come
+from three pickle files (\code{train.pkl}, \code{val.pkl}, \code{test.pkl},
+under \code{class\_attr\_data\_10/}),
+the standard 200-class, 312-concept splits used throughout the CBM
+literature -- not re-split or re-curated by this study. Loading is a
+direct pass-through (CQA's \code{CUBDataset}): the entire pickle file for a
+split is loaded in one shot, with no sampling, slicing, deduplication, or
+class exclusion.
+
+\subsection{Encoding}
+
+Images are encoded with CLIP (\code{ViT-L/14}), using CLIP's own standard
+preprocessing transform, identical for every image and every split:
+
+\begin{lstlisting}
+Compose([
+    Resize(n_px, interpolation=BICUBIC),
+    CenterCrop(n_px),
+    convert_to_rgb,
+    ToTensor(),
+    Normalize(mean=(0.48145466, 0.4578275, 0.40821073),
+              std=(0.26862954, 0.26130258, 0.27577711)),
+])
+\end{lstlisting}
+
+where \code{n\_px} is CLIP's native input resolution (224 for
+\code{ViT-L/14}). This is exactly OpenAI's released CLIP preprocessing --
+no dataset-specific cropping, augmentation, or normalization is added. The
+resulting embeddings are 768-dimensional. Per-split row counts: train
+4{,}796, validation 1{,}198, test 5{,}794 (all 200 classes).
+
+\paragraph{Per-split standardization.} Before any model training, each
+split's embeddings are independently standardized to zero mean and unit
+variance, \emph{per split} (i.e.\ using that split's own mean/std, not
+statistics computed on the training split alone):
+
+\begin{lstlisting}
+embeddings = (embeddings - embeddings.mean(0, keepdim=True)) \
+             / embeddings.std(0, keepdim=True)
+\end{lstlisting}
+
+\subsection{Task restriction: the sparrow minimal pair}
+\label{sec:cub-restriction}
+
+The CBM experiment does not use the full 200-way classification task.
+Instead, both the concept space and the label-prediction task are
+restricted to a single, deliberately difficult \emph{minimal pair} of
+visually similar species: the Le Conte's Sparrow (class id 123) and the
+Savannah Sparrow (class id 126), and to six concepts (of the 112 total)
+chosen for their relevance to distinguishing these two species:
+
+\begin{table}[h]
+\centering
+\begin{tabular}{rl}
+\toprule
+Concept index & Concept name \\
+\midrule
+23 & striped breast \\
+44 & buff breast \\
+48 & white throat \\
+69 & buff nape \\
+89 & solid belly \\
+103 & brown crown \\
+\bottomrule
+\end{tabular}
+\caption{The 6 masked CUB concepts used by the sparrow-pair CBM (indices into the 112-concept CUB concept vector).}
+\end{table}
+
+\subsection{Concept extractor training}
+
+\textbf{Crucially, the concept extractor is trained on the training split
+with the two sparrow classes excluded} -- it never sees a Le Conte's or
+Savannah Sparrow training image, and is evaluated only on the held-out
+\emph{test}-split sparrow-pair images (Section~\ref{sec:cub-eval}). This
+ensures the concept predictions used at evaluation time come from a model
+that generalizes the visual concepts from unrelated species, rather than
+one fit directly to the two classes it will later be asked to distinguish:
+
+\begin{lstlisting}
+SPARROW_PAIR = [123, 126]
+concept_mask = [23, 44, 48, 69, 89, 103]
+
+train_other_subset = np.where(
+    ~np.isin(train_y.numpy(), SPARROW_PAIR)
+)[0]
+
+concept_model = MultiOutputClassifier(
+    SVC(kernel='rbf', C=1.0, class_weight='balanced')
+)
+concept_model.fit(
+    train_embeddings[train_other_subset].numpy(),
+    train_concepts[train_other_subset][:, concept_mask].numpy(),
+)
+\end{lstlisting}
+
+\paragraph{Hyperparameter choice.} An RBF kernel (rather than the linear
+kernel used for emails, Section~\ref{sec:emails-training}) was chosen
+because CLIP image embeddings and the visual concepts being predicted
+(e.g.\ ``striped breast'') are not expected to be linearly separable in
+embedding space the way short-text sentence embeddings are for the
+email-specific concepts; \code{C=1.0} and \code{class\_weight='balanced'}
+match the emails configuration for consistency, compensating for the
+imbalance in how often each visual concept is present across the (large,
+199-class) training subset used here.
+
+\subsection{Label predictor training}
+
+The label predictor is trained \emph{only} on the sparrow pair's own
+training rows (i.e.\ the training images the concept extractor above never
+saw), using ground-truth concepts (the same six, masked, rescaled to
+$\{-1,+1\}$):
+
+\begin{lstlisting}
+train_pair_subset = np.where(
+    np.isin(train_y.numpy(), SPARROW_PAIR)
+)[0]
+train_pair_concepts_pm1 = 2 * train_concepts[train_pair_subset][:, concept_mask].numpy() - 1
+train_pair_y = train_y[train_pair_subset].numpy()
+
+label_model = LogisticRegression(
+    max_iter=1000, class_weight='balanced'
+)
+label_model.fit(train_pair_concepts_pm1, train_pair_y)
+\end{lstlisting}
+
+Unlike the emails label predictor, no \code{fit\_intercept=False} or
+\code{penalty=None} override is used here -- default regularization
+(\code{penalty='l2'}, $C=1.0$) and a fitted intercept are used, since with
+only two, well-separated classes and 6 ground-truth concepts, the fitted
+model reaches perfect training-time separability regardless (see below).
+
+\subsection{End-to-end inference and evaluation}
+\label{sec:cub-eval}
+
+Evaluation is restricted to the sparrow pair's rows within the \emph{test}
+split (59 images: 29 Le Conte's, 30 Savannah). As with emails, the chain
+is: embedding $\rightarrow$ per-concept SVM decision function $\rightarrow$
+$\tanh$ $\rightarrow$ label predictor:
+
+\begin{lstlisting}
+test_pair_subset = np.where(
+    np.isin(test_y.numpy(), SPARROW_PAIR)
+)[0]
+X_test = test_embeddings[test_pair_subset].numpy()
+
+logits = np.column_stack(
+    [est.decision_function(X_test) for est in concept_model.estimators_]
+)
+concept_activations = np.tanh(logits)
+y_pred = label_model.predict(concept_activations)
+\end{lstlisting}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrr}
+\toprule
+Class & Precision & Recall & F1 & Support \\
+\midrule
+Le Conte's Sparrow (123) & 0.78 & 0.86 & 0.82 & 29 \\
+Savannah Sparrow (126) & 0.85 & 0.77 & 0.81 & 30 \\
+\midrule
+\textbf{Accuracy} & \multicolumn{4}{r}{\textbf{0.814} (48 / 59)} \\
+\bottomrule
+\end{tabular}
+\caption{CUB CBM end-to-end test performance on the sparrow minimal pair.}
+\end{table}
+
+For reference, using \emph{ground-truth} concepts directly (bypassing the
+concept extractor entirely) the label predictor reaches \textbf{100\%}
+accuracy on the same 59 test images -- i.e.\ the six chosen concepts are
+perfectly sufficient to distinguish the two species when known exactly;
+the end-to-end accuracy gap (81.4\% vs.\ 100\%) is attributable entirely
+to concept-extraction error on out-of-training-distribution species, not
+to the label predictor's decision boundary.
+
+\section{Common implementation details}
+
+Both experiments share the following design choices, applied identically:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Concept representation at inference time}: the label
+    predictor always consumes $\tanh(\text{decision\_function}(x))$, not
+    the SVMs' binarized $\{0,1\}$ predictions -- a continuous, signed
+    confidence score in $(-1, 1)$ for each concept.
+    \item \textbf{Ground-truth concept scaling at training time}: binary
+    ground-truth concepts $\{0,1\}$ are rescaled to $\{-1,+1\}$
+    ($2c - 1$) before fitting the label predictor, so that training-time
+    inputs (exact $\pm 1$) and inference-time inputs
+    ($\tanh$-bounded, approaching but never reaching $\pm 1$) share the
+    same representation and sign convention.
+    \item \textbf{One-SVM-per-concept}: both concept extractors are a
+    scikit-learn \code{MultiOutputClassifier} wrapping an \code{SVC},
+    i.e.\ independent binary classifiers per concept (no joint/multi-task
+    concept model), fit and queried independently via
+    \code{estimator.decision\_function}.
+    \item \textbf{Label predictor}: a single multinomial/binomial
+    \code{LogisticRegression} in both cases, mapping the (six-dimensional)
+    concept-activation vector to the task label.
+\end{itemize}
+
+\section{Reproducibility}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{ll}
+\toprule
+Artifact & Location \\
+\midrule
+Emails preprocessing & \code{emails/scripts/preprocessing.ipynb} \\
+Emails CBM training + evaluation & \code{emails/scripts/train\_concept\_extractor2.ipynb} \\
+Emails accuracy report (standalone) & \code{emails/scripts/report\_test\_accuracy.py} \\
+CUB encoding & \code{cub/scripts/encode\_clip.py} \\
+CUB CBM training + evaluation & \code{cub/notebooks/train\_model.ipynb} \\
+CUB accuracy report (standalone) & \code{cub/scripts/report\_test\_accuracy.py} \\
+\bottomrule
+\end{tabular}
+\caption{Where to find/reproduce each step described in this document.}
+\end{table}
+
+Both standalone accuracy-report scripts were verified to reproduce the
+exact numbers quoted in this document (0.923 for emails, 0.814 for CUB).
+
+\end{document}
