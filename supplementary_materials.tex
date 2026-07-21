@@ -180,6 +180,29 @@ validation micro-F1 (documented as code comments alongside the chosen
 configuration in the training notebook) -- the reported linear, $C=1.0$
 configuration is the one actually used for all downstream results.
 
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrr}
+\toprule
+Concept & Precision & Recall & F1 & Support \\
+\midrule
+Fear+Authority   & 0.89 & 0.91 & 0.90 & 501 \\
+Urgency          & 0.88 & 0.94 & 0.91 & 553 \\
+Curiosity        & 0.62 & 0.50 & 0.55 & 262 \\
+Neutral          & 0.94 & 0.82 & 0.88 & 416 \\
+Reply            & 0.89 & 0.24 & 0.38 & 33 \\
+Open attachment  & 0.71 & 0.07 & 0.14 & 67 \\
+\midrule
+Micro avg    & 0.87 & 0.80 & 0.83 & 1{,}832 \\
+Macro avg    & 0.82 & 0.58 & 0.63 & 1{,}832 \\
+Weighted avg & 0.86 & 0.80 & 0.81 & 1{,}832 \\
+\bottomrule
+\end{tabular}
+\caption{Emails concept extractor: per-concept classification report on the
+1{,}000-row test set (multi-label; support is the number of positive
+instances per concept, not the number of test rows).}
+\end{table}
+
 \subsection{Label predictor training}
 
 The label predictor is a single multinomial logistic regression, trained
@@ -209,6 +232,25 @@ to the number of training examples (551), so overfitting risk is low;
 \code{class\_weight='balanced'} compensates for the training split's class
 imbalance (185 valid vs.\ 366 phishing in the training split with binary
 labels).
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrr}
+\toprule
+Class & Precision & Recall & F1 & Support \\
+\midrule
+Phishing (0) & 0.93 & 0.92 & 0.93 & 500 \\
+Valid (1)    & 0.92 & 0.94 & 0.93 & 500 \\
+\midrule
+\textbf{Accuracy} & \multicolumn{4}{r}{\textbf{0.93} (1{,}000 / 1{,}000)} \\
+\bottomrule
+\end{tabular}
+\caption{Emails label predictor evaluated \emph{independently}, directly on
+ground-truth concepts (bypassing the concept extractor), on the 1{,}000-row
+test set -- the upper bound on task accuracy given perfect concept
+predictions. (Train-set accuracy 0.95, validation-set accuracy 0.97, not
+shown in full.)}
+\end{table}
 
 \subsection{End-to-end inference and evaluation}
 \label{sec:emails-eval}
@@ -362,6 +404,31 @@ match the emails configuration for consistency, compensating for the
 imbalance in how often each visual concept is present across the (large,
 199-class) training subset used here.
 
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrr}
+\toprule
+Concept & Precision & Recall & F1 & Support \\
+\midrule
+striped breast & 0.54 & 0.97 & 0.69 & 30 \\
+buff breast    & 0.67 & 0.97 & 0.79 & 29 \\
+white throat   & 0.82 & 0.77 & 0.79 & 30 \\
+buff nape      & 0.41 & 0.59 & 0.49 & 29 \\
+solid belly    & 0.93 & 0.45 & 0.60 & 29 \\
+brown crown    & 0.50 & 0.30 & 0.38 & 30 \\
+\midrule
+Micro avg    & 0.60 & 0.67 & 0.64 & 177 \\
+Macro avg    & 0.64 & 0.67 & 0.62 & 177 \\
+Weighted avg & 0.64 & 0.67 & 0.62 & 177 \\
+\bottomrule
+\end{tabular}
+\caption{CUB concept extractor: per-concept classification report on the
+sparrow pair's 59 held-out test images (multi-label; support is the number
+of positive instances per concept out of 59 images, not 59 itself). Note
+the extractor was never trained on either sparrow species
+(Section~\ref{sec:cub-restriction}).}
+\end{table}
+
 \subsection{Label predictor training}
 
 The label predictor is trained \emph{only} on the sparrow pair's own
@@ -387,6 +454,25 @@ Unlike the emails label predictor, no \code{fit\_intercept=False} or
 (\code{penalty='l2'}, $C=1.0$) and a fitted intercept are used, since with
 only two, well-separated classes and 6 ground-truth concepts, the fitted
 model reaches perfect training-time separability regardless (see below).
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrr}
+\toprule
+Class & Precision & Recall & F1 & Support \\
+\midrule
+Le Conte's Sparrow (123) & 1.00 & 1.00 & 1.00 & 29 \\
+Savannah Sparrow (126)   & 1.00 & 1.00 & 1.00 & 30 \\
+\midrule
+\textbf{Accuracy} & \multicolumn{4}{r}{\textbf{1.00} (59 / 59)} \\
+\bottomrule
+\end{tabular}
+\caption{CUB label predictor evaluated \emph{independently}, directly on
+ground-truth concepts (bypassing the concept extractor), on the sparrow
+pair's 59 test images -- the upper bound on task accuracy given perfect
+concept predictions: the six chosen concepts perfectly separate the two
+species when known exactly.}
+\end{table}
 
 \subsection{End-to-end inference and evaluation}
 \label{sec:cub-eval}
@@ -424,13 +510,11 @@ Savannah Sparrow (126) & 0.85 & 0.77 & 0.81 & 30 \\
 \caption{CUB CBM end-to-end test performance on the sparrow minimal pair.}
 \end{table}
 
-For reference, using \emph{ground-truth} concepts directly (bypassing the
-concept extractor entirely) the label predictor reaches \textbf{100\%}
-accuracy on the same 59 test images -- i.e.\ the six chosen concepts are
-perfectly sufficient to distinguish the two species when known exactly;
-the end-to-end accuracy gap (81.4\% vs.\ 100\%) is attributable entirely
-to concept-extraction error on out-of-training-distribution species, not
-to the label predictor's decision boundary.
+Comparing this against the independently-trained label predictor's 100\%
+upper bound (previous subsection): the end-to-end accuracy gap (81.4\%
+vs.\ 100\%) is attributable entirely to concept-extraction error on
+out-of-training-distribution species, not to the label predictor's
+decision boundary.
 
 \section{Common implementation details}
 
@@ -438,9 +522,10 @@ Both experiments share the following design choices, applied identically:
 
 \begin{itemize}[leftmargin=*]
     \item \textbf{Concept representation at inference time}: the label
-    predictor always consumes $\tanh(\text{decision\_function}(x))$, not
-    the SVMs' binarized $\{0,1\}$ predictions -- a continuous, signed
-    confidence score in $(-1, 1)$ for each concept.
+    predictor always consumes $\tanh$ of the concept SVMs'
+    \code{decision\_function} output, not their binarized $\{0,1\}$
+    predictions -- a continuous, signed confidence score in $(-1, 1)$ for
+    each concept.
     \item \textbf{Ground-truth concept scaling at training time}: binary
     ground-truth concepts $\{0,1\}$ are rescaled to $\{-1,+1\}$
     ($2c - 1$) before fitting the label predictor, so that training-time
