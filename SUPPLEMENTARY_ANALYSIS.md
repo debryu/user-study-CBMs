@@ -19,40 +19,46 @@ model+concepts accuracy comparison, covering both experiments (`cub/` and
 # Emails (data already cleaned -- see emails/PARTICIPANT_DATA_REPORT.md)
 cd emails && uv run scripts/supplementary_analysis.py
 
-# CUB (needs the cleaning step first -- no equivalent existed before this)
-cd cub && uv run scripts/prepare_analysis_data.py && uv run scripts/supplementary_analysis.py
+# CUB (data already cleaned -- see cub/temp/dataWideClean.csv/dataLongClean.csv,
+# the official files downloaded from Drive)
+cd cub && uv run scripts/supplementary_analysis.py
 ```
 
 Figures are saved to `emails/figures/` and `cub/figures/` (tracked in git,
 unlike `data/`/`temp/`). Shared plotting/stats logic lives in
-`utils/participant_analysis.py`, used identically by both experiments'
+`common/participant_analysis.py`, used identically by both experiments'
 `scripts/supplementary_analysis.py`. All condition comparisons use
 Kruskal-Wallis (nonparametric — time/count data here are skewed, not
 normal); all correlations use Spearman.
 
-## Important caveat: CUB's participant data had no cleaning pipeline before this
+## Note: CUB's cleaning criteria were independently confirmed
 
-Emails already had a manually-cleaned, verified participant dataset
-(`dataWideClean.csv`/`dataLongClean.csv`, see `emails/PARTICIPANT_DATA_REPORT.md`).
-**CUB had none** — `cub/temp/updated_complete.csv` includes all 568 raw
-participants, with no attention-check or tab-switching exclusion applied
-anywhere in this repo. New `cub/scripts/prepare_analysis_data.py` builds
-the CUB equivalent, but with one assumption worth double-checking:
+CUB initially had no cleaned participant dataset in this repo at all
+(unlike emails, which already had `dataWideClean.csv`/`dataLongClean.csv`
+— see `emails/PARTICIPANT_DATA_REPORT.md`). `cub/scripts/prepare_analysis_data.py`
+was written to fill that gap, applying an attention-check pass/fail
+criterion (verified directly against the data: matches the single largest
+response pattern, 355/568 participants) plus a tab-switching threshold
+(`sum(TimeTabWasLeft) > 3`) carried over *by analogy* from the emails
+study — flagged at the time as an assumption, not confirmed for CUB.
 
-- **Attention-check pass criterion** — verified directly against the data
-  (matches the single largest response pattern, 355/568 participants):
-  `AttentionCheck1_ParticipantAnswer == "Le Conte" AND Confidence == 1`
-  AND `AttentionCheck2_ParticipantAnswer == "Savannah" AND Confidence == 13`.
-- **Tab-switching threshold (`sum(TimeTabWasLeft) > 3`)** — carried over
-  **by analogy** from the emails study's confirmed threshold, not
-  independently confirmed for CUB. If CUB used a different QC threshold
-  (or none), the "clean" CUB numbers below would shift.
-- **Net effect**: 226/568 CUB participants excluded (17 blank/incomplete,
-  213 failed attention checks, 18 excessive tab-switching, with overlap) —
-  a much higher exclusion rate (40%) than emails (54/417, 13%), driven
-  almost entirely by the attention-check criterion. Worth sanity-checking
-  this large a cut is intended/expected for CUB before treating the
-  numbers below as final.
+An official `dataWideClean.csv`/`dataLongClean.csv` for CUB has since been
+added to Drive and downloaded into `cub/temp/`. Diffing it against
+`prepare_analysis_data.py`'s output confirmed them **equivalent**:
+identical 342-participant set (0 difference either direction), identical
+values everywhere except cosmetic condition/answer relabeling (e.g.
+`BlackBox`→`LabelOnly`, `Le Conte`→`0`). The assumed tab-switching
+threshold was therefore correct. The official files are now the ones
+actually used by `cub/scripts/supplementary_analysis.py`;
+`prepare_analysis_data.py` is kept only for provenance/transparency of the
+derivation logic (its default output directory was changed so re-running
+it can't accidentally overwrite the official files).
+
+Net effect of the cleaning: 226/568 CUB participants excluded (17
+blank/incomplete, 213 failed attention checks, 18 excessive
+tab-switching, with overlap) — a much higher exclusion rate (40%) than
+emails (54/417, 13%), driven almost entirely by the attention-check
+criterion.
 
 ## A. Time vs. support modality
 
@@ -68,10 +74,11 @@ significant in both, per-stimulus and per-participant-total):
 Interactive-concept support takes noticeably longer than any other
 condition in both experiments — consistent with participants actually
 using the ability to edit concepts, not just glancing at extra output.
-CUB additionally shows a bigger gap between "sees concepts" (FixedCBM) and
-"sees only the label" (BlackBox) than emails does between the analogous
-conditions — plausible given CUB concepts require visually checking image
-regions, which is a slower judgment than reading text.
+CUB additionally shows a bigger gap between "sees concepts"
+(NonInteractiveConcepts) and "sees only the label" (LabelOnly) than
+emails does between the analogous conditions — plausible given CUB
+concepts require visually checking image regions, which is a slower
+judgment than reading text.
 
 ## B. Decisiveness
 

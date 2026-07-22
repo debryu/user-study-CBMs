@@ -1,16 +1,20 @@
 """Build cleaned wide/long participant-response tables for CUB, mirroring
 emails/scripts/verify_participant_data.py's dataWideClean.csv/dataLongClean.csv
-outputs -- needed because no equivalent cleaning/exclusion pipeline exists
-yet for CUB (unlike emails, `cub/temp/updated_complete.csv` has no
-attention-check/tab-switching exclusion applied to it at all).
+outputs. Written when no official cleaned CUB dataset existed yet (unlike
+emails, `cub/temp/updated_complete.csv` had no attention-check/tab-switching
+exclusion applied at all).
 
-IMPORTANT CAVEAT: the exclusion criteria here (attention-check pass/fail,
-sum(TimeTabWasLeft) > 3) are carried over **by analogy** from the emails
-study, where they were confirmed by the researcher. For CUB, the
-attention-check logic is verified directly against this data (see below),
-but the specific ">3" tab-switching threshold is an assumption, not
-independently confirmed for CUB -- re-check with the researcher before
-treating results derived from it as final.
+SUPERSEDED: an official dataWideClean.csv/dataLongClean.csv for CUB has
+since been added to Drive (user_study_results_cub/) and downloaded to
+cub/temp/ -- use those directly, not this script's output. Comparing this
+script's output against the official files confirmed them equivalent
+(identical 342-participant set, identical values modulo cosmetic
+condition/answer relabeling), so the exclusion criteria below are now
+confirmed correct for CUB, not just assumed by analogy with emails. This
+script is kept for provenance/transparency of the derivation logic (and as
+a cross-check if the official file is ever regenerated) -- by default it
+writes to a separate directory so re-running it can never accidentally
+clobber the official files in cub/temp/.
 
 Attention-check pass criterion (verified against this data: 355/568
 participants match this exact pattern, by far the largest single group):
@@ -125,7 +129,8 @@ def build_long_clean(wide_clean: pd.DataFrame) -> pd.DataFrame:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", default="temp/updated_complete.csv")
-    parser.add_argument("--output-dir", default="temp")
+    parser.add_argument("--output-dir", default="temp/self_generated_clean",
+                         help="Kept separate from temp/ by default so this never overwrites the official files")
     return parser.parse_args()
 
 
