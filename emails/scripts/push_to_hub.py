@@ -73,11 +73,25 @@ def main() -> None:
 
     # A column that's all-null in one split (e.g. an error-tracking column with
     # no errors) gets Arrow-typed as `null` there but `string` elsewhere, which
-    # push_to_hub's cross-split schema check rejects -- normalize object/string
-    # columns to a consistent non-null dtype across all splits first.
-    string_cols = {c for df in dfs.values() for c, dt in df.dtypes.items() if dt == object}
+    # push_to_hub's cross-split schema check rejects -- normalize just those
+    # columns to a consistent non-null string dtype across all splits.
+    #
+    # IMPORTANT: this must never touch `embedding`/`concept_gts`/`concept_gts_f`
+    # -- those are `object`-dtype too (they hold numpy arrays, not text), and
+    # blindly `.astype("string")`-ing them silently stringifies each array via
+    # str(ndarray) (e.g. "[-0.123  0.045 ...]", not valid JSON/Python-literal
+    # syntax) instead of leaving them as proper array/list columns. An earlier
+    # version of this fix did exactly that; found via emails/scripts/tutorial.ipynb's
+    # sanity check against the previously-published NWeak/emails-mirror.
+    ARRAY_COLUMNS = {"embedding", "concept_gts", "concept_gts_f"}
+    all_null_cols = {
+        col
+        for df in dfs.values()
+        for col in df.columns
+        if col not in ARRAY_COLUMNS and df[col].isna().all()
+    }
     for df in dfs.values():
-        for col in string_cols:
+        for col in all_null_cols:
             if col in df.columns:
                 df[col] = df[col].astype("string").fillna("")
 
