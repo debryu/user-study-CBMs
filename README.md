@@ -14,8 +14,6 @@ uv sync
 
 This creates a `.venv` with a CUDA build of PyTorch, CQA (installed straight from its GitHub repo), and OpenAI's CLIP.
 
-> CQA vendors its own copy of CLIP, but its packaging doesn't ship the BPE vocab file it needs, so it fails to import. We depend on the upstream [openai/CLIP](https://github.com/openai/CLIP) package instead for the actual encoding — CQA is still used for dataset loading (`CQA.datasets.GenericDataset`).
-
 ## Data
 
 Datasets, CLIP embeddings, and model checkpoints are **not** committed to this repo — they're distributed via HuggingFace instead (link TBD). Every `data/`, `clip_embeddings/`, and `*_csv/` folder (wherever it occurs, e.g. `cub/data/`) is gitignored.
