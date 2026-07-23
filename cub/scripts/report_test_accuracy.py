@@ -68,7 +68,7 @@ def main() -> None:
     # trained only on the sparrow pair's own train rows.
     train_pair_concepts_pm1 = 2 * train_concepts[train_pair_subset][:, CONCEPT_MASK].numpy() - 1
     train_pair_y = train_y[train_pair_subset].numpy()
-    label_model = LogisticRegression(max_iter=1000, class_weight="balanced")
+    label_model = LogisticRegression(max_iter=1000, class_weight="balanced", fit_intercept=False)
     label_model.fit(train_pair_concepts_pm1, train_pair_y)
 
     # End-to-end test evaluation, on the pair's test rows only: embedding ->

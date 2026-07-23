@@ -5,6 +5,7 @@
 \usepackage[margin=1in]{geometry}
 \usepackage{booktabs}
 \usepackage{amsmath}
+\usepackage{graphicx}
 \usepackage{hyperref}
 \usepackage{xcolor}
 \usepackage{listings}
@@ -252,6 +253,20 @@ predictions. (Train-set accuracy 0.95, validation-set accuracy 0.97, not
 shown in full.)}
 \end{table}
 
+Since \code{fit\_intercept=False}, the fitted weight vector alone is
+directly interpretable as each concept's signed contribution to the
+``valid email'' decision, with no additive bias term to account for:
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.7\textwidth]{emails/figures/label_predictor_weights.pdf}
+\caption{Emails label predictor: learned weight per concept. Positive
+weights push the decision toward ``Valid''; negative weights push toward
+``Phishing''. Urgency, Fear+Authority, and Open attachment are the three
+concepts most associated with phishing; Neutral, Curiosity, and Reply are
+most associated with valid email.}
+\end{figure}
+
 \subsection{End-to-end inference and evaluation}
 \label{sec:emails-eval}
 
@@ -444,16 +459,23 @@ train_pair_concepts_pm1 = 2 * train_concepts[train_pair_subset][:, concept_mask]
 train_pair_y = train_y[train_pair_subset].numpy()
 
 label_model = LogisticRegression(
-    max_iter=1000, class_weight='balanced'
+    max_iter=1000, class_weight='balanced', fit_intercept=False
 )
 label_model.fit(train_pair_concepts_pm1, train_pair_y)
 \end{lstlisting}
 
-Unlike the emails label predictor, no \code{fit\_intercept=False} or
-\code{penalty=None} override is used here -- default regularization
-(\code{penalty='l2'}, $C=1.0$) and a fitted intercept are used, since with
-only two, well-separated classes and 6 ground-truth concepts, the fitted
-model reaches perfect training-time separability regardless (see below).
+As with the emails label predictor, \code{fit\_intercept=False} is used so
+the fitted weight vector alone is directly interpretable as each concept's
+signed contribution, with no additive bias term. Unlike emails,
+\code{penalty=None} is \emph{not} set here -- default L2 regularization
+($C=1.0$) is kept, though with only two well-separated classes and 6
+ground-truth concepts the fitted model reaches perfect training-time
+separability regardless of regularization strength (see below).
+Empirically, this choice is a no-op: refitting with \code{fit\_intercept=True}
+instead converges to an intercept of $-2.97\times10^{-17}$ (i.e.\ effectively
+zero already) and produces bit-identical weights and predictions, since the
+sparrow-pair task is symmetric enough that the optimizer never finds a
+class-prior offset useful.
 
 \begin{table}[h]
 \centering
@@ -473,6 +495,16 @@ pair's 59 test images -- the upper bound on task accuracy given perfect
 concept predictions: the six chosen concepts perfectly separate the two
 species when known exactly.}
 \end{table}
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.7\textwidth]{cub/figures/label_predictor_weights.pdf}
+\caption{CUB label predictor: learned weight per concept (sparrow pair).
+Positive weights push the decision toward Savannah Sparrow; negative
+weights push toward Le Conte's Sparrow. The perfectly symmetric magnitudes
+($\pm0.71$) reflect the six concepts' perfect linear separability of the
+two species (Table above).}
+\end{figure}
 
 \subsection{End-to-end inference and evaluation}
 \label{sec:cub-eval}
