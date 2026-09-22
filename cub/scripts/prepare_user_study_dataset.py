@@ -1,5 +1,13 @@
 """Clean up the raw CUB user-study export into a HuggingFace-ready CSV.
 
+SUPERSEDED: push_user_study_to_hub.py now reads the three official Drive
+exports directly and derives StimX_TestSampleIdx itself, so this script is no
+longer part of the publishing path. It also reads dataComplete.csv, whose
+*internal* condition labels (None / BlackBox / FixedCBM / InteractiveCBM) are
+not what we publish -- the public labels come from
+dataComplete_CorrectLabelsCondition.csv. Kept because prepare_analysis_data.py
+still consumes its output for the provenance derivation.
+
 For each StimX_StimID (X = 1..10), inserts a StimX_TestSampleIdx column right
 after it: the integer sample_idx that indexes into the CUB test split (see
 cub/data/cub_csv/test.csv or the NWeak/cub-mirror dataset's test split), e.g.

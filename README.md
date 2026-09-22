@@ -22,7 +22,7 @@ All five datasets live on the HuggingFace Hub.
 
 | Dataset | What it is | Size | License |
 |---|---|---|---|
-| [`NWeak/CBM-user-study-cub`](https://huggingface.co/datasets/NWeak/CBM-user-study-cub) | Human participant responses, CUB study | 568 participants | CC-BY-4.0 |
+| [`NWeak/CBM-user-study-cub`](https://huggingface.co/datasets/NWeak/CBM-user-study-cub) | Human participant responses, CUB study | 568 / 342 / 3,420 rows (3 configs) | CC-BY-4.0 |
 | [`NWeak/CBM-user-study-emails`](https://huggingface.co/datasets/NWeak/CBM-user-study-emails) | Human participant responses, emails study | 417 / 363 / 3,539 rows (3 configs) | CC-BY-4.0 |
 | [`NWeak/cub-mirror`](https://huggingface.co/datasets/NWeak/cub-mirror) | CUB images + CLIP embeddings + official CUB labels & concepts | 4,796 / 1,198 / 5,794 | CUB research-use |
 | [`NWeak/emails-mirror`](https://huggingface.co/datasets/NWeak/emails-mirror) | Email corpus + sentence embeddings + concept/label ground truth | 1,064 / 266 / 1,000 | CC-BY-4.0 (see below) |
@@ -59,13 +59,19 @@ CLIP. No dataset download is needed, since everything is pulled from the Hub.
 ```python
 from datasets import load_dataset
 
-cub = load_dataset("NWeak/CBM-user-study-cub", split="test")
+# both studies ship three curations of the same data
+cub          = load_dataset("NWeak/CBM-user-study-cub",    "full",       split="test")  # 568
+cub_clean    = load_dataset("NWeak/CBM-user-study-cub",    "clean_wide", split="test")  # 342
+cub_long     = load_dataset("NWeak/CBM-user-study-cub",    "clean_long", split="test")  # 3,420
 
-# the emails study ships three curations of the same data
 emails       = load_dataset("NWeak/CBM-user-study-emails", "full",       split="test")  # 417
 emails_clean = load_dataset("NWeak/CBM-user-study-emails", "clean_wide", split="test")  # 363
 emails_long  = load_dataset("NWeak/CBM-user-study-emails", "clean_long", split="test")  # 3,539
 ```
+
+**The paper analyses the `clean_wide` and `clean_long` configs**, which give
+the reported totals of 705 participants (342 + 363) and 6,959 observations
+(3,420 + 3,539). The `full` configs keep every participant who started.
 
 One row per participant (or, for `clean_long`, one row per
 participant-stimulus). For each of 10 stimuli it records the stimulus shown,
@@ -75,27 +81,25 @@ counts, time spent, number of answer changes, and time spent outside the
 browser tab. Participant IDs are sequential integers, so no identifying
 information is present.
 
-**Condition names differ between the two published studies.**
-`CBM-user-study-cub` uses the internal names (`NoSupport`, `BlackBox`,
-`FixedCBM`, `InteractiveCBM`); `CBM-user-study-emails` uses the public ones
-(`NoSupport`, `LabelOnly`, `NonInteractiveConcepts`, `InteractiveConcepts`).
-These are the same four experimental arms in the same order, so map them
-before pooling the two studies.
+Both studies use the same `ExperimentalCondition` names (`NoSupport`,
+`LabelOnly`, `NonInteractiveConcepts`, `InteractiveConcepts`), so they can be
+pooled directly.
 
 ### Joining responses back to stimuli
 
-`CBM-user-study-cub` has a `StimX_TestSampleIdx` column (X = 1..10) giving the
-`sample_idx` into `cub-mirror`'s test split, so you can recover the exact
-image, concepts, and label behind any stimulus a participant saw. `-1` means no
-stimulus at that position.
+`CBM-user-study-cub` carries a `TestSampleIdx` giving the `sample_idx` into
+`cub-mirror`'s test split, so you can recover the exact image, concepts, and
+label behind any stimulus a participant saw. The wide configs have one per
+stimulus slot (`StimX_TestSampleIdx`, X = 1..10); the long config has a single
+`TestSampleIdx`. `-1` means no stimulus at that position.
 
 ```python
 from datasets import load_dataset
 
-resp = load_dataset("NWeak/CBM-user-study-cub", split="test").to_pandas()
+resp = load_dataset("NWeak/CBM-user-study-cub", "clean_long", split="test").to_pandas()
 cub  = load_dataset("NWeak/cub-mirror", split="test").to_pandas()
 
-stim1 = resp.merge(cub, left_on="Stim1_TestSampleIdx", right_on="sample_idx")
+merged = resp.merge(cub, left_on="TestSampleIdx", right_on="sample_idx")
 ```
 
 ## Running the experiments
@@ -132,7 +136,7 @@ across the 10 stimuli (a proxy for consulting an outside tool).
 
 | Script | Does |
 |---|---|
-| `cub/scripts/prepare_user_study_dataset.py` | Turns the raw CUB export into a Hub-ready CSV: adds `StimX_TestSampleIdx`, relabels the `"None"` baseline arm to `NoSupport`, drops never-started rows |
+| `cub/scripts/push_user_study_to_hub.py` | Builds the three published CUB configs from the official exports: drops never-started rows, derives `TestSampleIdx` from each stimulus filename. `--dry-run` reports the tables without pushing |
 | `cub/scripts/prepare_analysis_data.py` | Derives the cleaned wide/long CUB tables from scratch. **Superseded** by the official cleaned files, but kept for provenance. Its output was verified identical to them (same 342 participants, same values) |
 | `emails/scripts/verify_participant_data.py` | Hard-assertion verification of the emails clean/full CSVs before publishing: confirms the 363 are a strict subset of the 417 and that all 54 exclusions are explained, with 0 unexplained |
 
