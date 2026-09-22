@@ -165,6 +165,13 @@ power_analysis/       # pre-registration power analysis (R)
 pyproject.toml        # one shared uv environment for everything
 ```
 
+`sosci_templates/` holds the SoSci Survey exports for both studies, so they can
+be re-run as fielded; see
+[`sosci_templates/Readme.md`](sosci_templates/Readme.md) for how to import
+them. Both that directory and `power_analysis/` are the work of Alessandro
+Bogani ([@aleBogani](https://github.com/aleBogani)).
+[`AUTHORS.md`](AUTHORS.md) records who wrote what across the repository.
+
 ## Acknowledgments
 
 ### Emails experiment

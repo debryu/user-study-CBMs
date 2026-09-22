@@ -1,3 +1,9 @@
+# Author: Alessandro Bogani (github.com/aleBogani)
+#
+# Power analysis for the CBM decision-support user studies, from the paper
+# "Are Concept Bottleneck Models Effective as Decision-Support Systems?"
+# (arXiv:2608.25581). See AUTHORS.md.
+
 # ******** PREPARE R SESSION ******** ----
 
 # This part is heavily based on the scripts for the analyses of Sebben & Ullrich (2021).

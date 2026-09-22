@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE surveyProject SYSTEM "doctype.survey.dtd">
+<!--
+  SoSci Survey template for the emails user study.
+  Author: Alessandro Bogani (github.com/aleBogani)
+
+  From "Are Concept Bottleneck Models Effective as Decision-Support
+  Systems?" (arXiv:2608.25581). See AUTHORS.md in the repository root.
+-->
 <surveyProject version="2.4" timestamp="2026-07-22 10:50:57" program="oFb" progversion="3.8.08 1411">
 <title>CBMStudy_Emails</title>
 <description />
