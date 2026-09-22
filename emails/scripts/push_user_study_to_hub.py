@@ -37,9 +37,30 @@ predicted task label (`task_pred`), and the ground-truth label (`task_gt`).
 
 Concept order: Fear+Authority, Urgency, Curiosity, Neutral, Reply, Open attachment.
 
-Also includes `Subject`/`Body`/`Sender` for readability -- same real-email-content
-caveat as [`NWeak/emails-mirror`](https://huggingface.co/datasets/NWeak/emails-mirror)
-(published private for that reason). Join on `Original email No.`.
+Also includes `Subject`/`Body`/`Sender` for readability. Join on
+`Original email No.`.
+
+## Source dataset and attribution
+
+The emails themselves are **not ours**. They come from the
+**PhishingSpamDataSet** of Toth, Bisztray and Dubniczky, released under
+CC-BY-4.0 and redistributed here under that licence:
+
+> Rebeka Toth, Tamas Bisztray, Richard A. Dubniczky.
+> *Constructing and Benchmarking: a Labeled Email Dataset for Text-Based
+> Phishing and Spam Detection Framework.*
+> [arXiv:2511.21448](https://arxiv.org/abs/2511.21448) |
+> [github.com/DataPhish/PhishingSpamDataSet](https://github.com/DataPhish/PhishingSpamDataSet)
+
+Theirs: `Subject`, `Body`, `Sender`, `URL(s)`, `Type`, `Created by`, `Source`,
+`Year`, and the `LLM detected emotion` / `LLM detected motivation`
+annotations. Ours: the filtering and split, the embeddings, the 6-concept
+merge, and the trained models' outputs.
+
+Please cite Toth et al. alongside our paper if you use this data.
+
+**Note:** `Sender` and `Body` are real email content carried over from the
+source dataset.
 """
 
 

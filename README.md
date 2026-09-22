@@ -25,7 +25,7 @@ All five datasets live on the HuggingFace Hub.
 | [`NWeak/CBM-user-study-cub`](https://huggingface.co/datasets/NWeak/CBM-user-study-cub) | Human participant responses, CUB study | 568 participants | CC-BY-4.0 |
 | [`NWeak/CBM-user-study-emails`](https://huggingface.co/datasets/NWeak/CBM-user-study-emails) | Human participant responses, emails study | 417 / 363 / 3,539 rows (3 configs) | CC-BY-4.0 |
 | [`NWeak/cub-mirror`](https://huggingface.co/datasets/NWeak/cub-mirror) | CUB images + CLIP embeddings + official CUB labels & concepts | 4,796 / 1,198 / 5,794 | CUB research-use |
-| [`NWeak/emails-mirror`](https://huggingface.co/datasets/NWeak/emails-mirror) | Email corpus + sentence embeddings + concept/label ground truth | 1,064 / 266 / 1,000 | see card |
+| [`NWeak/emails-mirror`](https://huggingface.co/datasets/NWeak/emails-mirror) | Email corpus + sentence embeddings + concept/label ground truth | 1,064 / 266 / 1,000 | CC-BY-4.0 (see below) |
 | [`NWeak/emails-user-study`](https://huggingface.co/datasets/NWeak/emails-user-study) | Model concept activations + predictions for the 1,000 study emails | 1,000 | CC-BY-4.0 |
 
 CUB is split across two repos because we don't own the CUB-200-2011 images:
@@ -33,6 +33,11 @@ CUB is split across two repos because we don't own the CUB-200-2011 images:
 research-use terms (citing Wah et al. 2011), while our own contribution, the
 participant responses, sits in a separate CC-BY-4.0 repo, joined back on
 `sample_idx`.
+
+Neither email dataset is an original corpus. Both derive from the
+**PhishingSpamDataSet** of Toth, Bisztray and Dubniczky, redistributed under
+its CC-BY-4.0 licence. See [Acknowledgments](#acknowledgments) for what is
+theirs and what is ours.
 
 ## Installation
 
@@ -155,6 +160,53 @@ sosci_templates/      # SoSci Survey exports + stimuli, for re-running the studi
 power_analysis/       # pre-registration power analysis (R)
 pyproject.toml        # one shared uv environment for everything
 ```
+
+## Acknowledgments
+
+### Emails experiment
+
+The email corpus is **not ours**. It comes from:
+
+> Rebeka Toth, Tamas Bisztray, Richard A. Dubniczky.
+> *Constructing and Benchmarking: a Labeled Email Dataset for Text-Based
+> Phishing and Spam Detection Framework.*
+> [arXiv:2511.21448](https://arxiv.org/abs/2511.21448),
+> [github.com/DataPhish/PhishingSpamDataSet](https://github.com/DataPhish/PhishingSpamDataSet)
+
+Their **PhishingSpamDataSet** (roughly 12,000 emails) supplies the messages
+themselves and their original annotations: the `Subject`, `Body`, `Sender` and
+`URL(s)` fields, the phishing/spam/legitimate `Type` label, the human vs.
+LLM-generated `Created by` flag, the upstream `Source` and `Year`, and the
+emotional-appeal and motivation annotations (`LLM detected emotion`,
+`LLM detected motivation`). It is released under CC-BY-4.0, and our
+redistribution keeps that licence and this attribution.
+
+Our own contribution on top of it is:
+
+- the filtering down to 2,330 usable emails (English, under 400 words,
+  human-authored) and the pinned train/val/test split,
+- the sentence embeddings (`all-MiniLM-L6-v2`),
+- the merge of their 19 emotion and motivation annotations into the 6 concepts
+  the study actually measured (`concept_gts_f`),
+- the trained concept and label predictors and their outputs
+  (`NWeak/emails-user-study`),
+- and the human participant responses collected in our user study
+  (`NWeak/CBM-user-study-emails`), which are entirely ours.
+
+If you use the email data, please cite Toth et al. alongside this work.
+
+### CUB experiment
+
+The images and the official class and concept annotations come from
+CUB-200-2011:
+
+> C. Wah, S. Branson, P. Welinder, P. Perona, S. Belongie.
+> *The Caltech-UCSD Birds-200-2011 Dataset.*
+> Technical Report CNS-TR-2011-001, California Institute of Technology, 2011.
+
+Redistributed under Caltech's non-commercial research-use terms. Our
+contribution is the CLIP encoding, the concept and label predictors, and the
+participant responses.
 
 ## Citation
 
