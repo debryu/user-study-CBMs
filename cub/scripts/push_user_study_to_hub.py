@@ -98,11 +98,24 @@ long_ = load_dataset("{repo_id}", "clean_long", split="test")
 
 Participant IDs are sequential integers; no identifying information is present.
 
-This is our own contribution (participant responses, not part of the original
-CUB-200-2011 release), so it is licensed independently of CUB's terms -- see
-[`NWeak/cub-mirror`](https://huggingface.co/datasets/NWeak/cub-mirror) for the
-image/label data itself, which stays under CUB's non-commercial research-use
-terms.
+## Ownership and licence
+
+**This dataset is our own work, (c) 2026 the authors, released under
+CC-BY-4.0.** That covers every participant response, our model's outputs, the
+experimental design, *and* the concept ground truth.
+
+The six concepts are **not** CUB's official attributes. We defined them for
+this study (warm-coloured eyebrow, warm-coloured chest, plain sides, crested
+head, white throat, striped chest) and annotated the stimuli ourselves;
+`FeatureN_GT` reproduces CUB's own 112 attributes in 0 of 3420 rows, because it
+is not derived from them.
+
+CUB-200-2011 contributes only two things here: the stimulus images, which are
+*referenced* by `StimID`/`TestSampleIdx` but not included, and the species
+label in `CorrectAnswer`. For the images and CUB's official annotations see
+[`NWeak/cub-mirror`](https://huggingface.co/datasets/NWeak/cub-mirror), which
+stays under CUB's non-commercial research-use terms (Wah et al., 2011) because
+we do not own them.
 
 ## Citation
 

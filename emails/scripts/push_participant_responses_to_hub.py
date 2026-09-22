@@ -71,8 +71,20 @@ observations were kept; its GT is correct, only its recorded activations
 are unreliable. Full root-cause writeup in this repo's `emails/DATASET_NOTES.md`
 and `emails/PARTICIPANT_DATA_REPORT.md`.
 
-This is our own contribution (participant responses, not the underlying
-email stimuli), so it's licensed independently -- see
+## Ownership and licence
+
+**The participant data is our own work, (c) 2026 the authors, released under
+CC-BY-4.0.** That covers every participant response (answers, confidence,
+timings, concept clicks, answer changes, tab-switching), our model's outputs
+(`ModelAnswer`, `FeatureN_Detected`), and the experimental design.
+
+One exception: the `FeatureN_GT` columns are our six-concept merge of the
+emotion and motivation annotations in Toth, Bisztray and Dubniczky's
+**PhishingSpamDataSet** ([arXiv:2511.21448](https://arxiv.org/abs/2511.21448)),
+CC-BY-4.0, so their attribution requirement reaches those columns. The email
+text itself is not included here. Please cite them alongside our paper.
+
+See
 [`NWeak/emails-mirror`](https://huggingface.co/datasets/NWeak/emails-mirror)
 for the email data itself and
 [`NWeak/emails-user-study`](https://huggingface.co/datasets/NWeak/emails-user-study)

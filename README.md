@@ -197,6 +197,11 @@ Our own contribution on top of it is:
 - and the human participant responses collected in our user study
   (`NWeak/CBM-user-study-emails`), which are entirely ours.
 
+The one place the two meet is the `FeatureN_GT` columns in the participant
+data, which are our merge of their emotion and motivation annotations. Their
+attribution requirement reaches those columns. Everything else in the
+participant data is ours.
+
 If you use the email data, please cite Toth et al. alongside this work.
 
 ### CUB experiment
@@ -208,9 +213,17 @@ CUB-200-2011:
 > *The Caltech-UCSD Birds-200-2011 Dataset.*
 > Technical Report CNS-TR-2011-001, California Institute of Technology, 2011.
 
-Redistributed under Caltech's non-commercial research-use terms. Our
-contribution is the CLIP encoding, the concept and label predictors, and the
-participant responses.
+Redistributed under Caltech's non-commercial research-use terms, in
+`NWeak/cub-mirror` only.
+
+Our contribution is the CLIP encoding, the concept and label predictors, the
+participant responses, **and the six concepts themselves**. The CUB study does
+not use CUB's official 112 attributes: we defined six concepts for it
+(warm-coloured eyebrow, warm-coloured chest, plain sides, crested head, white
+throat, striped chest) and annotated the stimuli by hand. So
+`NWeak/CBM-user-study-cub` is our own work throughout, under CC-BY-4.0. CUB
+contributes only the stimulus images, which it references rather than
+includes, and the species label in `CorrectAnswer`.
 
 ## Citation
 

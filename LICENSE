@@ -25,19 +25,40 @@ SOFTWARE.
 
 NOTE ON SCOPE
 
-This MIT license covers the *code* in this repository only.
+This MIT license covers the *code* in this repository only. The datasets are
+licensed separately, as follows.
 
-The datasets released alongside it are licensed separately and are NOT covered
-by the terms above:
+OURS. The human user-study data is our own work and we assert copyright over
+it. This covers every participant response (answers, confidence ratings,
+timings, concept clicks, answer changes, tab-switching), our models' outputs,
+the experimental design, and -- for the CUB study -- the six concept
+definitions and their ground-truth annotation, which we wrote and annotated
+ourselves rather than taking from CUB. Released under CC-BY-4.0:
 
-  - NWeak/CBM-user-study-cub      CC-BY-4.0
-  - NWeak/CBM-user-study-emails   CC-BY-4.0
-  - NWeak/emails-mirror           CC-BY-4.0, derived from the PhishingSpamDataSet
-                                  of Toth, Bisztray and Dubniczky
-                                  (arXiv:2511.21448); attribution required
-  - NWeak/emails-user-study       CC-BY-4.0, same source and attribution
-  - NWeak/cub-mirror              CUB-200-2011 non-commercial research-use terms
-                                  (Wah et al. 2011); we do not own these images
+  - NWeak/CBM-user-study-cub      CC-BY-4.0, (c) 2026 the authors
+  - NWeak/CBM-user-study-emails   CC-BY-4.0, (c) 2026 the authors
+  - NWeak/emails-user-study       CC-BY-4.0, (c) 2026 the authors
+
+NOT OURS. We do not own the underlying corpora and cannot relicense them:
+
+  - NWeak/cub-mirror              CUB-200-2011 images and the official class
+                                  and concept annotations, under Caltech's
+                                  non-commercial research-use terms
+                                  (Wah et al. 2011).
+  - NWeak/emails-mirror           Derived from the PhishingSpamDataSet of
+                                  Toth, Bisztray and Dubniczky
+                                  (arXiv:2511.21448), CC-BY-4.0, attribution
+                                  required.
+
+WHERE THEY MEET. Two details sit inside our datasets but originate upstream:
+
+  - CBM-user-study-cub's CorrectAnswer is the CUB species label for the
+    stimulus, and StimID/TestSampleIdx reference CUB images (the images
+    themselves are not included). Its FeatureN_GT columns are ours.
+  - CBM-user-study-emails' and emails-user-study's FeatureN_GT / cN_gt columns
+    are our six-concept merge of Toth et al.'s emotion and motivation
+    annotations, so their attribution requirement reaches these columns.
+    Everything else in those datasets is ours.
 
 See each dataset card on the HuggingFace Hub, and the Acknowledgments section
 of README.md, for the full attribution requirements.
