@@ -67,6 +67,13 @@ Please cite Toth et al. alongside our paper if you use this data.
 
 **Note:** `Sender` and `Body` are real email content carried over from the
 source dataset.
+
+## Citation
+
+Produced for **[Are Concept Bottleneck Models Effective as Decision-Support
+Systems?](https://arxiv.org/abs/2608.25581)** (arXiv:2608.25581) -- Bogani,
+Debole, Marconato, Pugnana, Tentori, Passerini. Code:
+[github.com/debryu/user-study-CBMs](https://github.com/debryu/user-study-CBMs).
 """
 
 

@@ -79,6 +79,13 @@ for the email data itself and
 for our model's own computed activations/predictions (a different dataset
 from this one -- that one is model output, this one is participant
 responses).
+
+## Citation
+
+Produced for **[Are Concept Bottleneck Models Effective as Decision-Support
+Systems?](https://arxiv.org/abs/2608.25581)** (arXiv:2608.25581) -- Bogani,
+Debole, Marconato, Pugnana, Tentori, Passerini. Code:
+[github.com/debryu/user-study-CBMs](https://github.com/debryu/user-study-CBMs).
 """
 
 

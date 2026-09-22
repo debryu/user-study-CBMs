@@ -15,9 +15,10 @@ This repo only contains images and the *original* CUB-200-2011 annotations
 (class labels + the 112 official concept attributes) plus our CLIP encoding of
 them, so it's published under CUB-200-2011's own non-commercial research-use
 terms (see build_card() below) -- NOT a license we get to choose freely, since
-we don't own the images. Any new annotations that are our own contribution
-belong in a separate, separately-licensed repo -- see push_annotations_to_hub.py.
-Both repos share the `image_path` column so they can be joined back together.
+we don't own the images. Our own contributions are published separately under
+a license we choose: the participant responses live in NWeak/CBM-user-study-cub,
+joinable back to this repo's test split on sample_idx (see its TestSampleIdx
+columns). The image_path column is kept as a stable per-image join key.
 
 Requires being logged in first: `uv run huggingface-cli login` (or set HF_TOKEN).
 
@@ -48,7 +49,6 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", default="cub", help="Dataset name used in encode_clip.py's output filenames")
     parser.add_argument("--repo-id", required=True, help="HF dataset repo, e.g. debryu/cub-mirror")
-    parser.add_argument("--annotations-repo-id", default=None, help="Paired repo with our own annotations, for the dataset card")
     parser.add_argument("--metadata-dir", default=None, help="Directory with classes.txt/concepts.txt (default: metadata/<dataset>)")
     parser.add_argument("--data-root", default=None, help="Dataset root that image_path is relative to (default: data/<dataset>)")
     parser.add_argument("--csv-dir", default=None, help="Default: data/<dataset>_csv")
@@ -73,7 +73,7 @@ def build_split(args, split: str, class_names: list[str], concept_names: list[st
     embeddings = torch.load(embeddings_dir / f"{args.dataset}_{split}_{model_tag}.pt", weights_only=True)
     assert len(df) == embeddings.shape[0], f"{split}: {len(df)} csv rows vs {embeddings.shape[0]} embeddings"
 
-    # Keep image_path (stable join key for push_annotations_to_hub.py) and the
+    # Keep image_path (stable per-image join key for downstream datasets) and the
     # individual concept columns (browsable in the Hub viewer) alongside the
     # decoded image feature and a single concepts ground-truth vector (same
     # order as concept_names, handy to load straight into numpy/torch).
@@ -94,14 +94,10 @@ def build_split(args, split: str, class_names: list[str], concept_names: list[st
 
 def build_card(args) -> str:
     annotations_note = (
-        f"New annotations that are our own contribution (not part of the original "
-        f"CUB-200-2011 release) are published separately, under a more permissive "
-        f"license, at [`{args.annotations_repo_id}`](https://huggingface.co/datasets/{args.annotations_repo_id}). "
-        f"Join on `image_path` to combine the two."
-        if args.annotations_repo_id
-        else "Any new annotations that are our own contribution (not part of the "
-        "original CUB-200-2011 release) are published separately, under a more "
-        "permissive license, in a paired repo joinable on `image_path`."
+        "Our own contributions (not part of the original CUB-200-2011 release) are "
+        "published separately under CC-BY-4.0: the user-study participant responses "
+        "at [`NWeak/CBM-user-study-cub`](https://huggingface.co/datasets/NWeak/CBM-user-study-cub), "
+        "whose `TestSampleIdx` columns join against this repo's test-split `sample_idx`."
     )
     return f"""---
 license: other
@@ -138,6 +134,13 @@ purposes, and cite the original dataset:
 ```
 
 {annotations_note}
+
+## Citation
+
+Produced for **[Are Concept Bottleneck Models Effective as Decision-Support
+Systems?](https://arxiv.org/abs/2608.25581)** (arXiv:2608.25581) -- Bogani,
+Debole, Marconato, Pugnana, Tentori, Passerini. Code:
+[github.com/debryu/user-study-CBMs](https://github.com/debryu/user-study-CBMs).
 """
 
 

@@ -103,6 +103,13 @@ CUB-200-2011 release), so it is licensed independently of CUB's terms -- see
 [`NWeak/cub-mirror`](https://huggingface.co/datasets/NWeak/cub-mirror) for the
 image/label data itself, which stays under CUB's non-commercial research-use
 terms.
+
+## Citation
+
+Produced for **[Are Concept Bottleneck Models Effective as Decision-Support
+Systems?](https://arxiv.org/abs/2608.25581)** (arXiv:2608.25581) -- Bogani,
+Debole, Marconato, Pugnana, Tentori, Passerini. Code:
+[github.com/debryu/user-study-CBMs](https://github.com/debryu/user-study-CBMs).
 """
 
 

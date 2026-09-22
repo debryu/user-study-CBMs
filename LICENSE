@@ -1,0 +1,43 @@
+MIT License
+
+Copyright (c) 2026 Alessandro Bogani, Nicola Debole, Emanuele Marconato,
+Andrea Pugnana, Katya Tentori, Andrea Passerini
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+NOTE ON SCOPE
+
+This MIT license covers the *code* in this repository only.
+
+The datasets released alongside it are licensed separately and are NOT covered
+by the terms above:
+
+  - NWeak/CBM-user-study-cub      CC-BY-4.0
+  - NWeak/CBM-user-study-emails   CC-BY-4.0
+  - NWeak/emails-mirror           CC-BY-4.0, derived from the PhishingSpamDataSet
+                                  of Toth, Bisztray and Dubniczky
+                                  (arXiv:2511.21448); attribution required
+  - NWeak/emails-user-study       CC-BY-4.0, same source and attribution
+  - NWeak/cub-mirror              CUB-200-2011 non-commercial research-use terms
+                                  (Wah et al. 2011); we do not own these images
+
+See each dataset card on the HuggingFace Hub, and the Acknowledgments section
+of README.md, for the full attribution requirements.
