@@ -1,89 +1,170 @@
-# user-study-CBMs
+# Are Concept Bottleneck Models Effective as Decision-Support Systems?
 
-Reproducible codebase for the CBM user study paper, built around [CQA](https://github.com/debryu/CQA) for dataset loading and concept-bottleneck-model tooling.
+Official repository for the paper
+**[Are Concept Bottleneck Models Effective as Decision-Support Systems?](https://arxiv.org/abs/2608.25581)**
+(arXiv:2608.25581).
 
-The repo is organized by experiment (`cub/`, `emails/`, ...), each with its own `data/`, `metadata/`, `scripts/`, `notebooks/` — sharing a single top-level `uv` environment.
+Alessandro Bogani, Nicola Debole, Emanuele Marconato, Andrea Pugnana,
+Katya Tentori, Andrea Passerini
 
-## Setup
+> We present two large-scale user studies (N participants = 705,
+> N observations = 6,959) evaluating how concept-based explanations and user
+> interventions on the model's concepts affect the performance of the human-AI
+> team in two distinct binary classification tasks.
 
-Requires [`uv`](https://docs.astral.sh/uv/) and an NVIDIA GPU (CUDA 12.1+ driver).
+This repo contains the code for both experiments (**CUB**, bird species
+identification, and **emails**, phishing detection) and the links to every
+dataset they produced, including the human participant responses.
+
+## Datasets
+
+All five datasets live on the HuggingFace Hub.
+
+| Dataset | What it is | Size | License |
+|---|---|---|---|
+| [`NWeak/CBM-user-study-cub`](https://huggingface.co/datasets/NWeak/CBM-user-study-cub) | Human participant responses, CUB study | 568 participants | CC-BY-4.0 |
+| [`NWeak/CBM-user-study-emails`](https://huggingface.co/datasets/NWeak/CBM-user-study-emails) | Human participant responses, emails study | 417 / 363 / 3,539 rows (3 configs) | CC-BY-4.0 |
+| [`NWeak/cub-mirror`](https://huggingface.co/datasets/NWeak/cub-mirror) | CUB images + CLIP embeddings + official CUB labels & concepts | 4,796 / 1,198 / 5,794 | CUB research-use |
+| [`NWeak/emails-mirror`](https://huggingface.co/datasets/NWeak/emails-mirror) | Email corpus + sentence embeddings + concept/label ground truth | 1,064 / 266 / 1,000 | see card |
+| [`NWeak/emails-user-study`](https://huggingface.co/datasets/NWeak/emails-user-study) | Model concept activations + predictions for the 1,000 study emails | 1,000 | CC-BY-4.0 |
+
+CUB is split across two repos because we don't own the CUB-200-2011 images:
+`cub-mirror` carries only CUB-derived content under Caltech's non-commercial
+research-use terms (citing Wah et al. 2011), while our own contribution, the
+participant responses, sits in a separate CC-BY-4.0 repo, joined back on
+`sample_idx`.
+
+## Installation
+
+Requires [`uv`](https://docs.astral.sh/uv/). A GPU helps but is not required to
+run the tutorials.
 
 ```bash
+git clone git@github.com:debryu/user-study-CBMs.git
+cd user-study-CBMs
 uv sync
+uv run huggingface-cli login
 ```
 
-This creates a `.venv` with a CUDA build of PyTorch, CQA (installed straight from its GitHub repo), and OpenAI's CLIP.
+`uv sync` creates a `.venv` with a CUDA build of PyTorch, CQA, and OpenAI's
+CLIP. No dataset download is needed, since everything is pulled from the Hub.
 
-## Data
+## Using the datasets
 
-Datasets, CLIP embeddings, and model checkpoints are **not** committed to this repo — they're distributed via HuggingFace instead (link TBD). Every `data/`, `clip_embeddings/`, and `*_csv/` folder (wherever it occurs, e.g. `cub/data/`) is gitignored.
+```python
+from datasets import load_dataset
 
-To populate the CUB-200-2011 dataset locally, place it under `cub/data/cub/` in the layout CQA expects:
+cub = load_dataset("NWeak/CBM-user-study-cub", split="test")
 
-```
-cub/data/cub/
-├── CUB_200_2011/          # raw images (from Caltech)
-└── class_attr_data_10/    # train.pkl / val.pkl / test.pkl (concept + label annotations)
-```
-
-If `cub/data/cub/` is empty, pass `--download` to the encoding script below and CQA will fetch both automatically.
-
-Class and concept names live in `cub/metadata/cub/{classes.txt,concepts.txt}` (tracked in git — small, static reference lists).
-
-## Encoding a dataset with CLIP
-
-```bash
-cd cub
-uv run scripts/encode_clip.py --dataset cub --clip-model ViT-L/14
+# the emails study ships three curations of the same data
+emails       = load_dataset("NWeak/CBM-user-study-emails", "full",       split="test")  # 417
+emails_clean = load_dataset("NWeak/CBM-user-study-emails", "clean_wide", split="test")  # 363
+emails_long  = load_dataset("NWeak/CBM-user-study-emails", "clean_long", split="test")  # 3,539
 ```
 
-For each split (`train`, `val`, `test`) this:
-- encodes every image with the given CLIP model and saves the embedding matrix to `data/clip_embeddings/<dataset>_<split>_<model>.pt`
-- saves a CSV of concepts + labels to `data/<dataset>_csv/<split>.csv` (e.g. `data/cub_csv/train.csv`)
+One row per participant (or, for `clean_long`, one row per
+participant-stimulus). For each of 10 stimuli it records the stimulus shown,
+the correct answer, the model's answer, the participant's answer and
+confidence, per-concept ground truth and model activations, per-concept click
+counts, time spent, number of answer changes, and time spent outside the
+browser tab. Participant IDs are sequential integers, so no identifying
+information is present.
 
-Run `uv run scripts/encode_clip.py --help` for all options (batch size, device, output directories, etc). The output CSV also gets an `image_path` column (relative to `--data-root`) so images can be re-joined for distribution — see below.
+**Condition names differ between the two published studies.**
+`CBM-user-study-cub` uses the internal names (`NoSupport`, `BlackBox`,
+`FixedCBM`, `InteractiveCBM`); `CBM-user-study-emails` uses the public ones
+(`NoSupport`, `LabelOnly`, `NonInteractiveConcepts`, `InteractiveConcepts`).
+These are the same four experimental arms in the same order, so map them
+before pooling the two studies.
 
-## Publishing to HuggingFace
+### Joining responses back to stimuli
 
-We don't own the CUB-200-2011 images (Caltech redistributes them for non-commercial research use only — the photos themselves stay copyright of the original photographers), so images and the *official* CUB labels are kept in a separate repo from anything that's genuinely our own contribution, licensed accordingly. Both scripts push a `DatasetDict` with all three splits in one call and share the `image_path` column so the two repos can be joined back together locally.
+`CBM-user-study-cub` has a `StimX_TestSampleIdx` column (X = 1..10) giving the
+`sample_idx` into `cub-mirror`'s test split, so you can recover the exact
+image, concepts, and label behind any stimulus a participant saw. `-1` means no
+stimulus at that position.
 
-```bash
-uv run huggingface-cli login   # or export HF_TOKEN=...
-cd cub
+```python
+from datasets import load_dataset
 
-# 1. images + CLIP embeddings + official CUB labels — CUB's non-commercial research-use terms
-uv run scripts/push_to_hub.py --repo-id <your-username>/cub-mirror \
-    --annotations-repo-id <your-username>/cub-user-study-annotations
+resp = load_dataset("NWeak/CBM-user-study-cub", split="test").to_pandas()
+cub  = load_dataset("NWeak/cub-mirror", split="test").to_pandas()
 
-# 2. our own annotations only (once they exist, under data/cub_annotations/{split}.csv) — license of our choosing
-uv run scripts/push_annotations_to_hub.py --repo-id <your-username>/cub-user-study-annotations \
-    --base-repo-id <your-username>/cub-mirror --license cc-by-4.0
+stim1 = resp.merge(cub, left_on="Stim1_TestSampleIdx", right_on="sample_idx")
 ```
 
-Both push as **private** repos by default; pass `--public` once ready to share. Each script also writes a dataset card (`README.md` on the Hub) documenting attribution/license and how to join the two repos. Run either with `--help` for all options.
+## Running the experiments
 
-`push_to_hub.py`'s dataset (currently live at [`NWeak/cub-mirror`](https://huggingface.co/datasets/NWeak/cub-mirror)) stores everything needed to run the modeling notebook without any local files: `label` is a HF `ClassLabel` (so `ds[split].features["label"].names` gives the 200 class names), `concepts` is a single ground-truth vector column (same order as the 112 individual concept columns), and `class_names.txt`/`concept_names.txt` are also uploaded as plain files in the repo.
+The two tutorial notebooks run the full pipeline end to end, sourcing all data
+from the Hub, with no local dataset and no preprocessing step:
 
-## Modeling notebook
+- [`cub/notebooks/tutorial.ipynb`](cub/notebooks/tutorial.ipynb)
+- [`emails/scripts/tutorial.ipynb`](emails/scripts/tutorial.ipynb)
 
-`cub/notebooks/generate_data.ipynb` loads `NWeak/cub-mirror` directly via `load_dataset()` and runs the full concept-bottleneck pipeline for a hard pair (Le Conte vs. Savannah Sparrow): CLIP embedding → concept classifiers → concept → label classifier → end-to-end evaluation → a tidy per-sample CSV → a hand-checkable linear formula for the user study. No local CUB download or CQA needed to run it — just `uv sync` + `hf auth login`.
+Each trains the concept classifiers and the label predictor from scratch,
+evaluates end to end, and verifies that the hand-computable linear formula
+reproduces the model's predictions exactly.
+
+| Path | Purpose |
+|---|---|
+| `cub/notebooks/generate_data.ipynb` | Builds the CUB stimulus set used in the study |
+| `cub/notebooks/train_model.ipynb` | CUB model training and evaluation |
+| `emails/scripts/preprocessing.ipynb` | Corpus filtering, embedding, 19→6 concept merge |
+| `emails/scripts/train_concept_extractor2.ipynb` | Email model training, with regression-guard assertions |
+| `{cub,emails}/scripts/report_test_accuracy.py` | Test-set accuracy tables |
+
+Preprocessing is documented in
+[`cub/cub_preprocessing.md`](cub/cub_preprocessing.md) and
+[`emails/emails_preprocessing.md`](emails/emails_preprocessing.md); dataset
+statistics in [`DATASET_STATISTICS.md`](DATASET_STATISTICS.md).
+
+## Cleaning the participant data
+
+The paper's analyses use the **cleaned** sets (342 CUB + 363 emails = 705
+participants). A participant is excluded if they were blank/incomplete, failed
+either attention check, or left the browser tab more than 3 times in total
+across the 10 stimuli (a proxy for consulting an outside tool).
+
+| Script | Does |
+|---|---|
+| `cub/scripts/prepare_user_study_dataset.py` | Turns the raw CUB export into a Hub-ready CSV: adds `StimX_TestSampleIdx`, relabels the `"None"` baseline arm to `NoSupport`, drops never-started rows |
+| `cub/scripts/prepare_analysis_data.py` | Derives the cleaned wide/long CUB tables from scratch. **Superseded** by the official cleaned files, but kept for provenance. Its output was verified identical to them (same 342 participants, same values) |
+| `emails/scripts/verify_participant_data.py` | Hard-assertion verification of the emails clean/full CSVs before publishing: confirms the 363 are a strict subset of the 417 and that all 54 exclusions are explained, with 0 unexplained |
+
+For CUB, attention checks pass when `AttentionCheck1` is answered `"Le Conte"`
+with confidence `1` and `AttentionCheck2` is answered `"Savannah"` with
+confidence `13` (the two extremes of the bipolar 1 to 13 scale).
+
+Full write-ups:
+[`emails/PARTICIPANT_DATA_REPORT.md`](emails/PARTICIPANT_DATA_REPORT.md) for
+the exclusion counts and verification procedure, and
+[`emails/DATASET_NOTES.md`](emails/DATASET_NOTES.md) for two known data-entry
+issues in the raw emails export.
 
 ## Repository layout
 
 ```
-cub/
-├── scripts/
-│   ├── encode_clip.py             # CLIP encoding script
-│   ├── push_to_hub.py             # pushes images + embeddings + official CUB labels (CUB terms)
-│   └── push_annotations_to_hub.py # pushes our own annotations only (our choice of license)
-├── metadata/cub/                  # class/concept name lists (tracked)
-├── notebooks/generate_data.ipynb  # modeling pipeline, sourced entirely from the HF dataset
-└── data/                          # dataset + generated artifacts (gitignored)
-    ├── cub/                       # raw dataset
-    ├── clip_embeddings/           # CLIP embeddings
-    ├── cub_csv/                   # concepts/labels CSVs
-    ├── cub_annotations/           # our own annotations, keyed by image_path (once added)
-    └── user_study/                # generate_data.ipynb's output CSV
-emails/                            # second experiment (TBD)
-pyproject.toml, uv.lock            # shared environment for all experiments
+cub/                  # experiment 1: bird species identification
+├── notebooks/        # tutorial, stimulus generation, training
+├── scripts/          # encoding, publishing, cleaning, analysis
+├── metadata/cub/     # class/concept name lists (tracked)
+├── figures/
+└── data/             # datasets + generated artifacts (gitignored; on the Hub)
+emails/               # experiment 2: phishing detection, same structure
+sosci_templates/      # SoSci Survey exports + stimuli, for re-running the studies
+power_analysis/       # pre-registration power analysis (R)
+pyproject.toml        # one shared uv environment for everything
+```
+
+## Citation
+
+```bibtex
+@misc{bogani2026cbm,
+  title  = {Are Concept Bottleneck Models Effective as Decision-Support Systems?},
+  author = {Bogani, Alessandro and Debole, Nicola and Marconato, Emanuele
+            and Pugnana, Andrea and Tentori, Katya and Passerini, Andrea},
+  year   = {2026},
+  eprint = {2608.25581},
+  archivePrefix = {arXiv}
+}
 ```

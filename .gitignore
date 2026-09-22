@@ -12,8 +12,9 @@ wheels/
 # Notebooks
 .ipynb_checkpoints/
 
-# Claude Code local session state
+# Claude Code local session state and maintainer notes
 /.claude/
+CLAUDE.md
 
 # Dataset and generated artifacts (distributed via HuggingFace instead)
 # unanchored so this matches inside every experiment folder (cub/data/, emails/data/, ...)
